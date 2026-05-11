@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-green: #1D9E75;
+  --color-brand-green-dark: #0F6E56;
+  --color-brand-bg-green: #EAF3DE;
+  --color-brand-text-green: #27500A;
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-[#eeede8] text-[#1a1a18] min-h-screen font-sans;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @layer base {
+    body {
+      @apply bg-[#141412] text-[#f0ede6];
+    }
+  }
+}
+
+/* Custom Utilities */
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20;
+}
+
+.dark .glass {
+  @apply bg-black/40 backdrop-blur-md border border-white/10;
+}

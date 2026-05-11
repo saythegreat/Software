@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FreshTrack — Smart Food Expiry Tracker</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg1: #ffffff;
+            --bg2: #f5f5f3;
+            --bg3: #eeede8;
+            --txt1: #1a1a18;
+            --txt2: #6b6b66;
+            --bdr: rgba(0, 0, 0, 0.12);
+            --bdr2: rgba(0, 0, 0, 0.22);
+            --green: #1D9E75;
+            --green-d: #0F6E56;
+            --gbg: #EAF3DE;
+            --gtxt: #27500A;
+            --gbdr: #639922;
+            --abg: #FAEEDA;
+            --atxt: #633806;
+            --abdr: #BA7517;
+            --rbg: #FCEBEB;
+            --rtxt: #791F1F;
+            --rbdr: #E24B4A;
+            --bbg: #E6F1FB;
+            --btxt: #0C447C;
+            --bbdr: #85B7EB;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg1: #1e1e1c;
+                --bg2: #2a2a28;
+                --bg3: #141412;
+                --txt1: #f0ede6;
+                --txt2: #9a9890;
+                --bdr: rgba(255, 255, 255, 0.10);
+                --bdr2: rgba(255, 255, 255, 0.20);
+                --gbg: #173404;
+                --gtxt: #C0DD97;
+                --abg: #412402;
+                --atxt: #FAC775;
+                --rbg: #501313;
+                --rtxt: #F7C1C1;
+                --bbg: #042C53;
+                --btxt: #B5D4F4;
+            }
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg3);
+            color: var(--txt1);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px 12px 40px;
+        }
+
+        /* ── FRAME ── */
+        .frame {
+            width: 100%;
+            max-width: 440px;
+            background: var(--bg1);
+            border-radius: var(--radius-xl);
+            border: 0.5px solid var(--bdr);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 24px rgba(0, 0, 0, 0.07);
+        }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            background: var(--bg1);
+            border-bottom: 0.5px solid var(--bdr);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--txt1);
+        }
+
+        .logo span {
+            color: var(--green);
+        }
+
+        .topright {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-badge {
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 10px;
+            background: var(--rbg);
+            color: var(--rtxt);
+            display: none;
+            border: 0.5px solid var(--rbdr);
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #9FE1CB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #085041;
+        }
+
+        /* ── NAV ── */
+        .nav {
+            background: var(--bg1);
+            border-bottom: 0.5px solid var(--bdr);
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-tab {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px 4px 8px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--txt2);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            color: var(--green);
+            border-bottom-color: var(--green);
+            font-weight: 500;
+        }
+
+        .nav-icon {
+            font-size: 16px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        /* ── BODY ── */
+        .body {
+            padding: 14px;
+            background: var(--bg3);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* ── STATS ROW ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .stat {
+            background: var(--bg2);
+            border-radius: var(--radius);
+            padding: 10px 8px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--txt2);
+            margin-bottom: 3px;
+        }
+
+        .stat-val {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--txt1);
+        }
+
+        .stat-val.g {
+            color: var(--green);
+        }
+
+        .stat-val.a {
+            color: #BA7517;
+        }
+
+        .stat-val.r {
+            color: #E24B4A;
+        }
+
+        /* ── TOOLBAR ── */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 11px;
+        }
+
+        .toolbar input {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: var(--radius);
+            border: 0.5px solid var(--bdr2);
+            background: var(--bg1);
+            color: var(--txt1);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .toolbar input:focus {
+            border-color: var(--green);
+        }
+
+        .btn-add {
+            padding: 8px 15px;
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            background: var(--green-d);
+        }
+
+        /* ── FILTER PILLS ── */
+        .pills {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 13px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            padding: 4px 11px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 0.5px solid var(--bdr);
+            user-select: none;
+            background: var(--bg1);
+            color: var(--txt2);
+        }
+
+        .pill.f-all {
+            background: var(--green);
+            color: #fff;
+            border-color: var(--green);
+        }
+
+        .pill.f-g {
+            background: var(--gbg);
+            color: var(--gtxt);
+            border-color: var(--gbdr);
+        }
+
+        .pill.f-a {
+            background: var(--abg);
+            color: var(--atxt);
+            border-color: var(--abdr);
+        }
+
+        .pill.f-r {
+            background: var(--rbg);
+            color: var(--rtxt);
+            border-color: var(--rbdr);
+        }
+
+        /* ── ITEM CARD ── */
+        .items {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .item-card {
+            background: var(--bg1);
+            border-radius: var(--radius-lg);
+            border: 0.5px solid var(--bdr);
+            padding: 11px 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: border-color 0.15s;
+        }
+
+        .item-card:hover {
+            border-color: var(--bdr2);
+        }
+
+        .item-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .item-icon.g {
+            background: var(--gbg);
+        }
+
+        .item-icon.a {
+            background: var(--abg);
+        }
+
+        .item-icon.r {
+            background: var(--rbg);
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--txt1);
+        }
+
+        .item-meta {
+            font-size: 11px;
+            color: var(--txt2);
+            margin-top: 2px;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .badge.g {
+            background: var(--gbg);
+            color: var(--gtxt);
+        }
+
+        .badge.a {
+            background: var(--abg);
+            color: var(--atxt);
+        }
+
+        .badge.r {
+            background: var(--rbg);
+            color: var(--rtxt);
+        }
+
+        /* ── FRIDGE TOGGLE ── */
+        .fridge-toggle {
+            width: 30px;
+            height: 17px;
+            border-radius: 9px;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.2s;
+            position: relative;
+            outline: none;
+        }
+
+        .fridge-toggle.on {
+            background: var(--green);
+        }
+
+        .fridge-toggle.off {
+            background: #C0BDB4;
+        }
+
+        .fridge-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2.5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            transition: left 0.2s;
+        }
+
+        .fridge-toggle.on::after {
+            left: 15px;
+        }
+
+        .fridge-toggle.off::after {
+            left: 2.5px;
+        }
+
+        /* ── DELETE BUTTON ── */
+        .btn-del {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--txt2);
+            padding: 4px;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.15s;
+        }
+
+        .item-card:hover .btn-del {
+            opacity: 1;
+        }
+
+        /* ── FRIDGE SECTION ── */
+        .fridge-hint {
+            font-size: 12px;
+            color: var(--txt2);
+            text-align: center;
+            padding: 9px 12px;
+            background: var(--bg2);
+            border-radius: var(--radius);
+            margin-bottom: 13px;
+            border: 0.5px solid var(--bdr);
+        }
+
+        .fridge-hint span {
+            color: var(--green);
+            font-weight: 500;
+        }
+
+        .fridge-empty {
+            text-align: center;
+            padding: 36px 16px;
+            color: var(--txt2);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* ── CATEGORIES SECTION ── */
+        .cat-group {
+            margin-bottom: 16px;
+        }
+
+        .cat-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 9px;
+            padding-bottom: 7px;
+            border-bottom: 0.5px solid var(--bdr);
+        }
+
+        .cat-icon-big {
+            font-size: 20px;
+        }
+
+        .cat-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--txt1);
+            flex: 1;
+        }
+
+        .cat-count {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--bg2);
+            color: var(--txt2);
+        }
+
+        /* ── ALERTS SECTION ── */
+        .alert-card {
+            background: var(--bg1);
+            border: 0.5px solid var(--bdr);
+            border-radius: var(--radius-lg);
+            padding: 13px;
+            margin-bottom: 9px;
+            display: flex;
+            gap: 11px;
+            align-items: flex-start;
+        }
+
+        .alert-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        .alert-dot.r {
+            background: #E24B4A;
+        }
+
+        .alert-dot.a {
+            background: #BA7517;
+        }
+
+        .alert-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--txt1);
+        }
+
+        .alert-sub {
+            font-size: 11px;
+            color: var(--txt2);
+            margin-top: 2px;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 9px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: var(--radius);
+            border: 0.5px solid var(--bdr2);
+            background: transparent;
+            color: var(--txt1);
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+
+        .btn-action:hover {
+            background: var(--bg2);
+        }
+
+        .btn-action.primary {
+            background: var(--green);
+            color: #fff;
+            border-color: var(--green);
+        }
+
+        .btn-action.primary:hover {
+            background: var(--green-d);
+        }
+
+        /* ── RECIPES SECTION ── */
+        .recipe-card {
+            background: var(--bg1);
+            border: 0.5px solid var(--bdr);
+            border-radius: var(--radius-lg);
+            padding: 13px;
+            margin-bottom: 9px;
+        }
+
+        .recipe-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .recipe-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--txt1);
+        }
+
+        .recipe-time {
+            font-size: 11px;
+            color: var(--txt2);
+            margin-top: 2px;
+        }
+
+        .urgency-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--abg);
+            color: var(--atxt);
+            flex-shrink: 0;
+        }
+
+        .urgency-tag.low {
+            background: var(--gbg);
+            color: var(--gtxt);
+        }
+
+        .ing-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 9px;
+        }
+
+        .ing-chip {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--bg2);
+            color: var(--txt2);
+            border: 0.5px solid var(--bdr);
+        }
+
+        .ing-chip.expiring {
+            background: var(--abg);
+            color: var(--atxt);
+            border-color: var(--abdr);
+        }
+
+        .recipe-steps {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: var(--bg2);
+            border-radius: var(--radius);
+            font-size: 12px;
+            color: var(--txt2);
+            line-height: 1.8;
+        }
+
+        .recipe-steps ol {
+            padding-left: 16px;
+        }
+
+        details summary {
+            font-size: 12px;
+            color: var(--txt2);
+            cursor: pointer;
+            margin-top: 9px;
+            list-style: none;
+            user-select: none;
+        }
+
+        details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty {
+            text-align: center;
+            padding: 30px 16px;
+            color: var(--txt2);
+            font-size: 13px;
+        }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg1);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            width: 100%;
+            max-width: 340px;
+            border: 0.5px solid var(--bdr2);
+        }
+
+        .modal-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--txt1);
+            margin-bottom: 15px;
+        }
+
+        .form-field {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            font-size: 11px;
+            color: var(--txt2);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 11px;
+            font-size: 13px;
+            border: 0.5px solid var(--bdr2);
+            border-radius: var(--radius);
+            background: var(--bg2);
+            color: var(--txt1);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .form-input:focus {
+            border-color: var(--green);
+        }
+
+        .fridge-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 11px;
+            background: var(--bg2);
+            border-radius: var(--radius);
+            border: 0.5px solid var(--bdr);
+            cursor: pointer;
+        }
+
+        .fridge-row input {
+            width: 15px;
+            height: 15px;
+            accent-color: var(--green);
+            cursor: pointer;
+        }
+
+        .fridge-row label {
+            font-size: 13px;
+            color: var(--txt1);
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .modal-btns button {
+            flex: 1;
+            padding: 9px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 0.5px solid var(--bdr2);
+            color: var(--txt1);
+            transition: background 0.12s;
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg2);
+        }
+
+        .btn-save {
+            background: var(--green);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-save:hover {
+            background: var(--green-d);
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bdr2);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="frame">
+
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <div class="logo">🌿 <span>Fresh</span>Track</div>
+            <div class="topright">
+                <span class="alert-badge" id="alert-badge"></span>
+                <div class="avatar">FET</div>
+            </div>
+        </div>
+
+        <!-- NAV -->
+        <div class="nav">
+            <div class="nav-tab active" onclick="go('inv')">
+                <span class="nav-icon">📦</span>Inventory
+            </div>
+            <div class="nav-tab" onclick="go('fridge')">
+                <span class="nav-icon">❄️</span>My Fridge
+            </div>
+            <div class="nav-tab" onclick="go('cats')">
+                <span class="nav-icon">🗂️</span>Categories
+            </div>
+            <div class="nav-tab" onclick="go('alerts')">
+                <span class="nav-icon">🔔</span>Alerts
+            </div>
+            <div class="nav-tab" onclick="go('recipes')">
+                <span class="nav-icon">🍳</span>Recipes
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="body">
+
+            <!-- ══ INVENTORY ══ -->
+            <div class="section active" id="sec-inv">
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">Total</div>
+                        <div class="stat-val" id="s-total">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Fresh</div>
+                        <div class="stat-val g" id="s-g">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Expiring</div>
+                        <div class="stat-val a" id="s-a">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Expired</div>
+                        <div class="stat-val r" id="s-r">0</div>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <input type="text" id="search" placeholder="Search all items…" oninput="renderInv()">
+                    <button class="btn-add" onclick="openModal()">+ Add item</button>
+                </div>
+                <div class="pills">
+                    <div class="pill f-all" id="p-all" onclick="setFilter('all')">All</div>
+                    <div class="pill" id="p-g" onclick="setFilter('g')">🟢 Fresh</div>
+                    <div class="pill" id="p-a" onclick="setFilter('a')">🟡 Expiring</div>
+                    <div class="pill" id="p-r" onclick="setFilter('r')">🔴 Expired</div>
+                </div>
+                <div class="items" id="inv-list"></div>
+            </div>
+
+            <!-- ══ MY FRIDGE ══ -->
+            <div class="section" id="sec-fridge">
+                <div class="fridge-hint">
+                    Only items with the <span>❄️ fridge toggle ON</span> appear here.<br>
+                    Go to Inventory and flip the toggle to add or remove items.
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">In fridge</div>
+                        <div class="stat-val" id="sf-total">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Fresh</div>
+                        <div class="stat-val g" id="sf-g">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Expiring</div>
+                        <div class="stat-val a" id="sf-a">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Expired</div>
+                        <div class="stat-val r" id="sf-r">0</div>
+                    </div>
+                </div>
+                <div class="items" id="fridge-list"></div>
+            </div>
+
+            <!-- ══ CATEGORIES ══ -->
+            <div class="section" id="sec-cats">
+                <div id="cat-body"></div>
+            </div>
+
+            <!-- ══ ALERTS ══ -->
+            <div class="section" id="sec-alerts">
+                <div id="alert-list"></div>
+            </div>
+
+            <!-- ══ RECIPES ══ -->
+            <div class="section" id="sec-recipes">
+                <p style="font-size:12px;color:var(--txt2);margin-bottom:12px">
+                    Recipes using your fridge items — expiring ingredients highlighted in amber.
+                </p>
+                <div id="recipe-list"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ADD ITEM MODAL -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-title">Add new item</div>
+
+            <div class="form-field">
+                <label class="form-label" for="f-name">Item name *</label>
+                <input class="form-input" id="f-name" placeholder="e.g. Parle-G Biscuits">
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="f-cat">Category</label>
+                <select class="form-input" id="f-cat">
+                    <option value="Dairy">🥛 Dairy &amp; Milk Products</option>
+                    <option value="Meat">🍗 Meat &amp; Poultry</option>
+                    <option value="Seafood">🐟 Seafood</option>
+                    <option value="Vegetables" selected>🥬 Vegetables</option>
+                    <option value="Fruits">🍎 Fruits</option>
+                    <option value="Beverages">🧃 Beverages</option>
+                    <option value="Snacks">🍪 Snacks &amp; Biscuits</option>
+                    <option value="Cooked">🍱 Cooked Food</option>
+                    <option value="Condiments">🫙 Condiments &amp; Sauces</option>
+                    <option value="Grains">🌾 Grains &amp; Cereals</option>
+                    <option value="Frozen">🧊 Frozen Food</option>
+                    <option value="Other">📦 Other</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="f-expiry">Expiry date *</label>
+                <input class="form-input" type="date" id="f-expiry">
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="f-qty">Quantity</label>
+                <input class="form-input" id="f-qty" placeholder="e.g. 500g, 1 pack, 6 pcs">
+            </div>
+
+            <div class="form-field">
+                <div class="fridge-row" onclick="document.getElementById('f-fridge').click()">
+                    <input type="checkbox" id="f-fridge" checked onclick="event.stopPropagation()">
+                    <label for="f-fridge">❄️ Also add to My Fridge</label>
+                </div>
+            </div>
+
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" onclick="saveItem()">Save item</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── Helpers ────────────────────────────────────────────────────────────────
+        const TODAY = new Date();
+        TODAY.setHours(0, 0, 0, 0);
+
+        function daysLeft(dateStr) {
+            const d = new Date(dateStr);
+            d.setHours(0, 0, 0, 0);
+            return Math.round((d - TODAY) / 86400000);
+        }
+
+        function freshClass(d) {
+            return d < 0 ? 'r' : d <= 3 ? 'a' : 'g';
+        }
+
+        function dayLabel(d) {
+            if (d < 0) return `Expired ${Math.abs(d)}d ago`;
+            if (d === 0) return 'Expires today';
+            return `${d}d left`;
+        }
+
+        function addDays(n) {
+            const d = new Date(TODAY);
+            d.setDate(d.getDate() + n);
+            return d.toISOString().split('T')[0];
+        }
+
+        // ─── Category metadata ──────────────────────────────────────────────────────
+        const CAT = {
+            Dairy: { icon: '🥛', label: 'Dairy & Milk Products' },
+            Meat: { icon: '🍗', label: 'Meat & Poultry' },
+            Seafood: { icon: '🐟', label: 'Seafood' },
+            Vegetables: { icon: '🥬', label: 'Vegetables' },
+            Fruits: { icon: '🍎', label: 'Fruits' },
+            Beverages: { icon: '🧃', label: 'Beverages' },
+            Snacks: { icon: '🍪', label: 'Snacks & Biscuits' },
+            Cooked: { icon: '🍱', label: 'Cooked Food' },
+            Condiments: { icon: '🫙', label: 'Condiments & Sauces' },
+            Grains: { icon: '🌾', label: 'Grains & Cereals' },
+            Frozen: { icon: '🧊', label: 'Frozen Food' },
+            Other: { icon: '📦', label: 'Other' },
+        };
+
+        const CAT_ORDER = ['Dairy', 'Meat', 'Seafood', 'Vegetables', 'Fruits', 'Beverages',
+            'Snacks', 'Cooked', 'Condiments', 'Grains', 'Frozen', 'Other'];
+
+        // ─── Item data ───────────────────────────────────────────────────────────────
+        let items = [
+            { id: 1, name: 'Whole milk', cat: 'Dairy', qty: '1L', expiry: addDays(1), fridge: true },
+            { id: 2, name: 'Greek yogurt', cat: 'Dairy', qty: '200g', expiry: addDays(2), fridge: true },
+            { id: 3, name: 'Cheddar cheese', cat: 'Dairy', qty: '250g', expiry: addDays(20), fridge: true },
+            { id: 4, name: 'Butter', cat: 'Dairy', qty: '100g', expiry: addDays(30), fridge: true },
+            { id: 5, name: 'Cottage cheese', cat: 'Dairy', qty: '200g', expiry: addDays(8), fridge: true },
+            { id: 6, name: 'Eggs', cat: 'Dairy', qty: '6 pcs', expiry: addDays(12), fridge: false },
+            { id: 7, name: 'Chicken breast', cat: 'Meat', qty: '400g', expiry: addDays(-1), fridge: true },
+            { id: 8, name: 'Beef mince', cat: 'Meat', qty: '300g', expiry: addDays(2), fridge: true },
+            { id: 9, name: 'Spinach', cat: 'Vegetables', qty: '150g', expiry: addDays(2), fridge: true },
+            { id: 10, name: 'Tomatoes', cat: 'Vegetables', qty: '4 pcs', expiry: addDays(5), fridge: true },
+            { id: 11, name: 'Broccoli', cat: 'Vegetables', qty: '300g', expiry: addDays(7), fridge: true },
+            { id: 12, name: 'Bell pepper', cat: 'Vegetables', qty: '2 pcs', expiry: addDays(4), fridge: true },
+            { id: 13, name: 'Orange juice', cat: 'Beverages', qty: '500ml', expiry: addDays(3), fridge: true },
+            { id: 14, name: 'Almond milk', cat: 'Beverages', qty: '1L', expiry: addDays(15), fridge: false },
+            { id: 15, name: 'Leftover pasta', cat: 'Cooked', qty: '1 box', expiry: addDays(-2), fridge: true },
+            { id: 16, name: 'Parle-G biscuits', cat: 'Snacks', qty: '1 pack', expiry: addDays(60), fridge: false },
+            { id: 17, name: 'Digestive biscuits', cat: 'Snacks', qty: '200g', expiry: addDays(45), fridge: false },
+            { id: 18, name: 'Potato chips', cat: 'Snacks', qty: '150g', expiry: addDays(30), fridge: false },
+            { id: 19, name: 'Basmati rice', cat: 'Grains', qty: '1kg', expiry: addDays(180), fridge: false },
+            { id: 20, name: 'Oats', cat: 'Grains', qty: '500g', expiry: addDays(120), fridge: false },
+            { id: 21, name: 'Tomato ketchup', cat: 'Condiments', qty: '500ml', expiry: addDays(90), fridge: true },
+            { id: 22, name: 'Frozen peas', cat: 'Frozen', qty: '500g', expiry: addDays(120), fridge: false },
+            { id: 23, name: 'Mango', cat: 'Fruits', qty: '2 pcs', expiry: addDays(4), fridge: false },
+            { id: 24, name: 'Banana', cat: 'Fruits', qty: '4 pcs', expiry: addDays(3), fridge: false },
+        ];
+        let nextId = 25;
+        let activeFilter = 'all';
+
+        // ─── Stats ───────────────────────────────────────────────────────────────────
+        function updateStats() {
+            const fi = items.filter(i => i.fridge);
+            document.getElementById('s-total').textContent = items.length;
+            document.getElementById('s-g').textContent = items.filter(i => freshClass(daysLeft(i.expiry)) === 'g').length;
+            document.getElementById('s-a').textContent = items.filter(i => freshClass(daysLeft(i.expiry)) === 'a').length;
+            document.getElementById('s-r').textContent = items.filter(i => freshClass(daysLeft(i.expiry)) === 'r').length;
+            document.getElementById('sf-total').textContent = fi.length;
+            document.getElementById('sf-g').textContent = fi.filter(i => freshClass(daysLeft(i.expiry)) === 'g').length;
+            document.getElementById('sf-a').textContent = fi.filter(i => freshClass(daysLeft(i.expiry)) === 'a').length;
+            document.getElementById('sf-r').textContent = fi.filter(i => freshClass(daysLeft(i.expiry)) === 'r').length;
+            const urg = items.filter(i => daysLeft(i.expiry) <= 3).length;
+            const badge = document.getElementById('alert-badge');
+            badge.textContent = urg + ' alert' + (urg !== 1 ? 's' : '');
+            badge.style.display = urg > 0 ? 'inline' : 'none';
+        }
+
+        // ─── Item card HTML ──────────────────────────────────────────────────────────
+        function itemCardHTML(item, showToggle) {
+            const d = daysLeft(item.expiry);
+            const f = freshClass(d);
+            const cm = CAT[item.cat] || CAT.Other;
+            return `
+    <div class="item-card" id="card-${item.id}">
+      <div class="item-icon ${f}">${cm.icon}</div>
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        <div class="item-meta">${cm.label} · ${item.qty}</div>
+      </div>
+      <span class="badge ${f}">${dayLabel(d)}</span>
+      ${showToggle
+                    ? `<button class="fridge-toggle ${item.fridge ? 'on' : 'off'}"
+             title="${item.fridge ? 'Remove from fridge' : 'Add to fridge'}"
+             onclick="toggleFridge(${item.id})"></button>`
+                    : ''}
+      <button class="btn-del" title="Delete" onclick="deleteItem(${item.id})">✕</button>
+    </div>`;
+        }
+
+        // ─── Render: Inventory ───────────────────────────────────────────────────────
+        function setFilter(f) {
+            activeFilter = f;
+            const map = { all: 'f-all', g: 'f-g', a: 'f-a', r: 'f-r' };
+            ['all', 'g', 'a', 'r'].forEach(k => {
+                const el = document.getElementById('p-' + k);
+                el.className = 'pill' + (k === f ? ' ' + map[k] : '');
+            });
+            renderInv();
+        }
+
+        function renderInv() {
+            const q = (document.getElementById('search').value || '').toLowerCase();
+            const list = items.filter(i => {
+                const f = freshClass(daysLeft(i.expiry));
+                const matchFilter = activeFilter === 'all' || activeFilter === f;
+                const matchSearch = i.name.toLowerCase().includes(q) || i.cat.toLowerCase().includes(q);
+                return matchFilter && matchSearch;
+            });
+            const el = document.getElementById('inv-list');
+            el.innerHTML = list.length
+                ? `<div class="items">${list.map(i => itemCardHTML(i, true)).join('')}</div>`
+                : '<div class="empty">No items found</div>';
+            updateStats();
+        }
+
+        // ─── Render: My Fridge ───────────────────────────────────────────────────────
+        function renderFridge() {
+            const fi = items.filter(i => i.fridge).sort((a, b) => daysLeft(a.expiry) - daysLeft(b.expiry));
+            const el = document.getElementById('fridge-list');
+            el.innerHTML = fi.length
+                ? `<div class="items">${fi.map(i => itemCardHTML(i, false)).join('')}</div>`
+                : '<div class="fridge-empty">❄️ No items in fridge yet.<br>Go to Inventory and flip the ❄️ toggle on any item.</div>';
+            updateStats();
+        }
+
+        // ─── Render: Categories ──────────────────────────────────────────────────────
+        function renderCats() {
+            const groups = {};
+            items.forEach(i => {
+                if (!groups[i.cat]) groups[i.cat] = [];
+                groups[i.cat].push(i);
+            });
+            const el = document.getElementById('cat-body');
+            const keys = CAT_ORDER.filter(k => groups[k]);
+            if (!keys.length) { el.innerHTML = '<div class="empty">No items yet</div>'; return; }
+            el.innerHTML = keys.map(k => {
+                const cm = CAT[k] || CAT.Other;
+                const arr = groups[k];
+                return `<div class="cat-group">
+      <div class="cat-header">
+        <span class="cat-icon-big">${cm.icon}</span>
+        <span class="cat-name">${cm.label}</span>
+        <span class="cat-count">${arr.length} item${arr.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="items">${arr.map(i => itemCardHTML(i, true)).join('')}</div>
+    </div>`;
+            }).join('');
+        }
+
+        // ─── Render: Alerts ──────────────────────────────────────────────────────────
+        function renderAlerts() {
+            const urgent = items
+                .filter(i => daysLeft(i.expiry) <= 3)
+                .sort((a, b) => daysLeft(a.expiry) - daysLeft(b.expiry));
+            const el = document.getElementById('alert-list');
+            if (!urgent.length) {
+                el.innerHTML = '<div class="empty">✅ No urgent alerts — your kitchen looks great!</div>';
+                return;
+            }
+            el.innerHTML = urgent.map(i => {
+                const d = daysLeft(i.expiry);
+                const f = freshClass(d);
+                const cm = CAT[i.cat] || CAT.Other;
+                const msg = d < 0
+                    ? `Expired ${Math.abs(d)} day${Math.abs(d) > 1 ? 's' : ''} ago`
+                    : d === 0 ? 'Expires today'
+                        : `Expires in ${d} day${d > 1 ? 's' : ''}`;
+                return `<div class="alert-card">
+      <div class="alert-dot ${f}"></div>
+      <div style="flex:1">
+        <div class="alert-title">${cm.icon} ${i.name}</div>
+        <div class="alert-sub">${msg} · ${i.qty} · ${cm.label}</div>
+        <div class="alert-actions">
+          <button class="btn-action primary">Use now</button>
+          <button class="btn-action" onclick="deleteItem(${i.id})">Mark used</button>
+          <button class="btn-action" onclick="deleteItem(${i.id})">Discard</button>
+        </div>
+      </div>
+    </div>`;
+            }).join('');
+        }
+
+        // ─── Render: Recipes ─────────────────────────────────────────────────────────
+        const RECIPES = [
+            {
+                name: 'Spinach omelette', time: '10 min', urgency: 'high',
+                ings: ['Spinach', 'Eggs', 'Butter'], expiring: ['Spinach'],
+                steps: ['Whisk 3 eggs with salt and pepper.', 'Wilt spinach in butter on medium heat.', 'Pour eggs over spinach and fold into an omelette.', 'Cook 2 min until set. Serve hot.']
+            },
+            {
+                name: 'Chicken & veggie stir-fry', time: '20 min', urgency: 'high',
+                ings: ['Chicken breast', 'Bell pepper', 'Broccoli', 'Tomatoes'], expiring: ['Chicken breast', 'Bell pepper'],
+                steps: ['Slice chicken into strips, chop vegetables.', 'Stir-fry chicken in oil over high heat 5 min.', 'Add vegetables and stir-fry 5 min more.', 'Season with soy sauce. Serve with rice.']
+            },
+            {
+                name: 'Yogurt smoothie bowl', time: '5 min', urgency: 'medium',
+                ings: ['Greek yogurt', 'Orange juice', 'Banana'], expiring: ['Greek yogurt', 'Orange juice'],
+                steps: ['Blend yogurt with orange juice until smooth.', 'Slice banana and arrange on top.', 'Add granola or honey as desired.']
+            },
+            {
+                name: 'Beef & tomato curry', time: '35 min', urgency: 'high',
+                ings: ['Beef mince', 'Tomatoes', 'Spinach', 'Condiments'], expiring: ['Beef mince', 'Spinach'],
+                steps: ['Brown beef mince in a pan.', 'Add chopped tomatoes and spices, simmer 20 min.', 'Stir in spinach until wilted. Serve with rice.']
+            },
+            {
+                name: 'Cheesy broccoli soup', time: '25 min', urgency: 'low',
+                ings: ['Broccoli', 'Cheddar cheese', 'Butter', 'Whole milk'], expiring: ['Whole milk'],
+                steps: ['Steam broccoli until tender.', 'Blend with milk and melted butter.', 'Return to pot, stir in cheddar until melted.', 'Season and serve hot.']
+            },
+        ];
+
+        function renderRecipes() {
+            document.getElementById('recipe-list').innerHTML = RECIPES.map(r => {
+                const ul = r.urgency === 'high' ? 'Use soon' : r.urgency === 'medium' ? 'Good timing' : 'Anytime';
+                return `<div class="recipe-card">
+      <div class="recipe-head">
+        <div>
+          <div class="recipe-name">${r.name}</div>
+          <div class="recipe-time">${r.time} · ${r.ings.length} ingredients</div>
+        </div>
+        <span class="urgency-tag${r.urgency === 'low' ? ' low' : ''}">${ul}</span>
+      </div>
+      <div class="ing-chips">
+        ${r.ings.map(ing => `<span class="ing-chip${r.expiring.includes(ing) ? ' expiring' : ''}">${ing}</span>`).join('')}
+      </div>
+      <details>
+        <summary>▸ View steps</summary>
+        <div class="recipe-steps">
+          <ol>${r.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+        </div>
+      </details>
+    </div>`;
+            }).join('');
+        }
+
+        // ─── Actions ─────────────────────────────────────────────────────────────────
+        function toggleFridge(id) {
+            const item = items.find(i => i.id === id);
+            if (item) item.fridge = !item.fridge;
+            renderAll();
+        }
+
+        function deleteItem(id) {
+            items = items.filter(i => i.id !== id);
+            renderAll();
+        }
+
+        // ─── Tab navigation ───────────────────────────────────────────────────────────
+        function go(tab) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('sec-' + tab).classList.add('active');
+            const tabs = ['inv', 'fridge', 'cats', 'alerts', 'recipes'];
+            document.querySelectorAll('.nav-tab')[tabs.indexOf(tab)].classList.add('active');
+        }
+
+        // ─── Modal ────────────────────────────────────────────────────────────────────
+        function openModal() {
+            document.getElementById('modal').classList.add('open');
+            const d = new Date();
+            d.setDate(d.getDate() + 7);
+            document.getElementById('f-expiry').value = d.toISOString().split('T')[0];
+            setTimeout(() => document.getElementById('f-name').focus(), 60);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('open');
+            document.getElementById('f-name').value = '';
+            document.getElementById('f-qty').value = '';
+            document.getElementById('f-fridge').checked = true;
+        }
+
+        function saveItem() {
+            const name = document.getElementById('f-name').value.trim();
+            const cat = document.getElementById('f-cat').value;
+            const expiry = document.getElementById('f-expiry').value;
+            const qty = document.getElementById('f-qty').value.trim() || '1';
+            const fridge = document.getElementById('f-fridge').checked;
+            if (!name || !expiry) { alert('Please fill in item name and expiry date.'); return; }
+            items.unshift({ id: nextId++, name, cat, qty, expiry, fridge });
+            closeModal();
+            renderAll();
+        }
+
+        // Close modal when clicking the overlay background
+        document.getElementById('modal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ─── Init ─────────────────────────────────────────────────────────────────────
+        function renderAll() {
+            renderInv();
+            renderFridge();
+            renderCats();
+            renderAlerts();
+            renderRecipes();
+        }
+
+        renderAll();
+    </script>
+</body>
+
+</html>
