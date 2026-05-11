@@ -4,12 +4,12 @@ import { InventoryList } from './InventoryList';
 import { StatsCards } from './StatsCards';
 import { ExpiryChart } from './ExpiryChart';
 import { Button } from '../ui/Button';
-import { Plus, LayoutGrid, List } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AddItemModal } from './AddItemModal';
 
 export const Dashboard = () => {
-  const { fetchItems, items, fetchCategories } = useStore();
+  const { fetchItems, fetchCategories } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {

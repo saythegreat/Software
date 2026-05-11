@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { getExpiryStatus, getDaysLeft } from '../utils/dateUtils';
+import { getExpiryStatus } from '../utils/dateUtils';
 import { toast } from 'sonner';
 
 export const useNotifications = () => {

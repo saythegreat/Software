@@ -1,7 +1,7 @@
 import { useStore } from '../../store/useStore';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { Button } from '../ui/Button';
-import { Trash2, Edit3, Snowflake, Search, Filter } from 'lucide-react';
+import { Trash2, Snowflake, Search, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 

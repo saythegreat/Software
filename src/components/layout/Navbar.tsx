@@ -1,6 +1,6 @@
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { LogOut, Bell, User, Settings } from 'lucide-react';
+import { LogOut, Bell } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, signOut } = useStore();
