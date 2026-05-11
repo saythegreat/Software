@@ -1,5 +1,3 @@
-"use client";
-
 import { useStore } from '../../store/useStore';
 import { getExpiryStatus } from '../../utils/dateUtils';
 import { motion } from 'framer-motion';

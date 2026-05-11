@@ -1,5 +1,3 @@
-"use client";
-
 import { useStore } from '../../store/useStore';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { Button } from '../ui/Button';

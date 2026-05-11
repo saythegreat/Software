@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { InventoryList } from './InventoryList';

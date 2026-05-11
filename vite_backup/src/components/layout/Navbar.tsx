@@ -1,5 +1,3 @@
-"use client";
-
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
 import { LogOut, Bell } from 'lucide-react';
