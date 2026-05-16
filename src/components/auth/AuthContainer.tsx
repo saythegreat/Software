@@ -28,7 +28,12 @@ export const AuthContainer = () => {
         toast.success('Sign up successful! Check your email for verification.');
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Auth Error:', error);
+      if (error.message?.includes('Invalid API key') || error.status === 401) {
+        toast.error('Authentication Error: Check your Supabase configuration in .env');
+      } else {
+        toast.error(error.message || 'An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
