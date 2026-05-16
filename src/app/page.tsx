@@ -35,7 +35,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#eeede8] dark:bg-[#141412] text-[#1a1a18] dark:text-[#f0ede6]">
+    <div className="min-h-screen bg-brand-bg text-[#2d3436]">
+
       {user ? (
         <>
           <Navbar />

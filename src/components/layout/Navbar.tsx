@@ -17,7 +17,7 @@ export const Navbar = () => {
   const initials = user?.email?.substring(0, 3).toUpperCase() || 'FET';
 
   return (
-    <nav className="bg-white border-b border-gray-100 py-3 px-6 sticky top-0 z-50">
+    <nav className="bg-white border-b border-gray-100/50 py-4 px-6 sticky top-0 z-50">
       <div className="container mx-auto flex items-center justify-between max-w-4xl">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 text-brand-primary">
@@ -30,19 +30,19 @@ export const Navbar = () => {
 
         <div className="flex items-center gap-4">
           {expiringCount > 0 && (
-            <div className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-xs font-semibold border border-red-100 flex items-center gap-1.5">
+            <div className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-[10px] font-bold border border-red-100/50 flex items-center gap-1.5 uppercase">
               {expiringCount} alerts
             </div>
           )}
           
-          <div className="flex items-center gap-2 group cursor-pointer relative">
-            <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xs border-2 border-white shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100 shadow-sm">
               {initials}
             </div>
             
             <button 
               onClick={signOut}
-              className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all"
+              className="p-2 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-full transition-all"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -53,4 +53,5 @@ export const Navbar = () => {
     </nav>
   );
 };
+
 

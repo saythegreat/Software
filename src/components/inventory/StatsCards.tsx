@@ -42,13 +42,14 @@ export const StatsCards = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1 }}
-          className="bg-white p-3 rounded-2xl border border-gray-100 flex flex-col items-start"
+          className="bg-white p-3.5 rounded-[1.25rem] border border-gray-100/50 flex flex-col items-start card-shadow"
         >
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">{stat.label}</p>
+          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">{stat.label}</p>
           <h4 className={`text-2xl font-bold ${stat.color}`}>{stat.value}</h4>
         </motion.div>
       ))}
     </div>
   );
 };
+
 
