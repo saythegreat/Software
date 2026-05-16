@@ -25,7 +25,7 @@ export const AuthContainer = () => {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast.success('Sign up successful! Check your email for verification.');
+        toast.success('Thank you for signing up and use the FreshTrack');
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
@@ -86,20 +86,7 @@ export const AuthContainer = () => {
           </Button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between">
-          <hr className="w-full border-gray-100 dark:border-gray-800" />
-          <span className="px-3 text-xs text-gray-400 uppercase">Or</span>
-          <hr className="w-full border-gray-100 dark:border-gray-800" />
-        </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-4">
-          <Button variant="outline" size="sm" onClick={() => toast.info('GitHub auth not configured')}>
-            <Globe className="w-4 h-4 mr-2" /> GitHub
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info('Apple auth not configured')}>
-            <Command className="w-4 h-4 mr-2" /> Apple
-          </Button>
-        </div>
 
         <p className="mt-8 text-center text-sm text-gray-500">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
