@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus, Globe, Command } from 'lucide-react';
+import { LogIn, UserPlus, Leaf } from 'lucide-react';
 
 export const AuthContainer = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,70 +29,63 @@ export const AuthContainer = () => {
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
-      if (error.message?.includes('Invalid API key') || error.status === 401) {
-        toast.error('Authentication Error: Check your Supabase configuration in .env');
-      } else {
-        toast.error(error.message || 'An unexpected error occurred');
-      }
+      toast.error(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-brand-bg">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-[#1e1e1c] rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-white/5"
+        className="w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-brand-green">FreshTrack</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            {isLogin ? 'Welcome back! Manage your food waste.' : 'Start tracking your food today.'}
+        <div className="text-center mb-10">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Leaf className="w-7 h-7 fill-current" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">FreshTrack</h1>
+          <p className="text-gray-400 text-sm mt-1">
+            {isLogin ? 'Manage your food waste' : 'Start tracking today'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5">Email Address</label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Email Address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#2a2a28] focus:ring-2 focus:ring-brand-green outline-none transition-all"
-              placeholder="you@example.com"
+              className="w-full px-5 py-3.5 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
+              placeholder="name@example.com"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5">Password</label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#2a2a28] focus:ring-2 focus:ring-brand-green outline-none transition-all"
+              className="w-full px-5 py-3.5 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
               placeholder="••••••••"
               required
             />
           </div>
 
-          <Button type="submit" className="w-full" isLoading={loading}>
-            {isLogin ? (
-              <><LogIn className="w-4 h-4 mr-2" /> Login</>
-            ) : (
-              <><UserPlus className="w-4 h-4 mr-2" /> Sign Up</>
-            )}
+          <Button type="submit" className="w-full rounded-2xl py-6 bg-emerald-500 hover:bg-emerald-600 text-white font-bold" isLoading={loading}>
+            {isLogin ? 'Login' : 'Create Account'}
           </Button>
         </form>
 
-
-
-        <p className="mt-8 text-center text-sm text-gray-500">
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
+        <p className="mt-8 text-center text-xs text-gray-400 font-medium">
+          {isLogin ? "New to FreshTrack? " : "Joined us before? "}
           <button 
             onClick={() => setIsLogin(!isLogin)}
-            className="text-brand-green font-semibold hover:underline"
+            className="text-emerald-600 font-bold hover:underline ml-1"
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </button>
@@ -101,3 +94,4 @@ export const AuthContainer = () => {
     </div>
   );
 };
+

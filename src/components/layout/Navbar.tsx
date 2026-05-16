@@ -2,41 +2,55 @@
 
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { LogOut, Bell } from 'lucide-react';
+import { Leaf, Bell, LogOut } from 'lucide-react';
 
 export const Navbar = () => {
-  const { user, signOut } = useStore();
+  const { user, signOut, items } = useStore();
+  
+  const expiringCount = items.filter(i => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const expiry = new Date(i.expiry_date);
+    return expiry.getTime() <= today.getTime() + (3 * 24 * 60 * 60 * 1000);
+  }).length;
+
+  const initials = user?.email?.substring(0, 3).toUpperCase() || 'FET';
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 dark:bg-[#1e1e1c]/80 backdrop-blur-md border-bottom border-gray-100 dark:border-white/5 py-4 px-6">
-      <div className="container mx-auto flex items-center justify-between max-w-5xl">
+    <nav className="bg-white border-b border-gray-100 py-3 px-6 sticky top-0 z-50">
+      <div className="container mx-auto flex items-center justify-between max-w-4xl">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-green rounded-lg flex items-center justify-center text-white font-bold">F</div>
-          <span className="text-xl font-bold bg-gradient-to-r from-brand-green to-brand-green-dark bg-clip-text text-transparent">
+          <div className="w-8 h-8 text-brand-primary">
+            <Leaf className="w-full h-full fill-current" />
+          </div>
+          <span className="text-xl font-bold text-gray-800 tracking-tight">
             FreshTrack
           </span>
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#1e1e1c]"></span>
-          </Button>
+          {expiringCount > 0 && (
+            <div className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-xs font-semibold border border-red-100 flex items-center gap-1.5">
+              {expiringCount} alerts
+            </div>
+          )}
           
-          <div className="flex items-center gap-3 pl-4 border-l border-gray-100 dark:border-white/5">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold">{user?.email?.split('@')[0]}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
+          <div className="flex items-center gap-2 group cursor-pointer relative">
+            <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xs border-2 border-white shadow-sm">
+              {initials}
             </div>
-            <div className="w-9 h-9 bg-brand-bg-green text-brand-text-green rounded-full flex items-center justify-center font-bold border border-brand-green/20">
-              {user?.email?.[0].toUpperCase()}
-            </div>
-            <Button variant="ghost" size="sm" onClick={signOut} title="Logout">
-              <LogOut className="w-5 h-5 text-gray-500 hover:text-red-500 transition-colors" />
-            </Button>
+            
+            <button 
+              onClick={signOut}
+              className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
     </nav>
   );
 };
+

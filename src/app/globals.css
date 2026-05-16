@@ -1,37 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-green: #1D9E75;
-  --color-brand-green-dark: #0F6E56;
-  --color-brand-bg-green: #EAF3DE;
-  --color-brand-text-green: #27500A;
+  --color-brand-primary: #10b981;
+  --color-brand-secondary: #3b82f6;
+  --color-brand-warning: #f59e0b;
+  --color-brand-danger: #ef4444;
+  --color-brand-bg: #f4f7f6;
   
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
 }
 
 :root {
-  --background: #eeede8;
-  --foreground: #1a1a18;
+  --background: #f4f7f6;
+  --foreground: #1f2937;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #141412;
-    --foreground: #f0ede6;
+    --background: #111827;
+    --foreground: #f9fafb;
   }
 }
 
 body {
-  @apply bg-[#eeede8] text-[#1a1a18] min-h-screen font-sans;
+  @apply bg-brand-bg text-[#1f2937] min-h-screen font-sans antialiased;
   background: var(--background);
   color: var(--foreground);
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
 }
 
 .glass {
   @apply bg-white/70 backdrop-blur-md border border-white/20;
 }
 
-.dark .glass {
-  @apply bg-black/40 backdrop-blur-md border border-white/10;
-}

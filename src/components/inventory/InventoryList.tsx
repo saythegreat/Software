@@ -3,44 +3,65 @@
 import { useStore } from '../../store/useStore';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { Button } from '../ui/Button';
-import { Trash2, Snowflake, Search, Filter } from 'lucide-react';
+import { Trash2, Snowflake, Search, Filter, Package, Milk, Egg, Utensils, Carrot, Beef } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const InventoryList = () => {
   const { items, deleteItem, updateItem } = useStore();
+  const [filter, setFilter] = (useStore as any).getState().filter || 'all'; // Placeholder if store doesn't have it
 
-  const getStatusColor = (status: string) => {
+  const getCategoryIcon = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes('milk') || cat.includes('dairy')) return <Milk className="w-5 h-5 text-blue-500" />;
+    if (cat.includes('egg')) return <Egg className="w-5 h-5 text-yellow-600" />;
+    if (cat.includes('veg') || cat.includes('carrot')) return <Carrot className="w-5 h-5 text-orange-500" />;
+    if (cat.includes('meat') || cat.includes('chicken') || cat.includes('beef')) return <Beef className="w-5 h-5 text-red-500" />;
+    return <Utensils className="w-5 h-5 text-gray-400" />;
+  };
+
+  const getStatusBadge = (status: string, days: number) => {
+    const label = getExpiryLabel(days);
     switch (status) {
-      case 'expired': return 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400';
-      case 'expiring': return 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400';
-      default: return 'bg-brand-bg-green text-brand-text-green dark:bg-brand-green/20 dark:text-brand-green';
+      case 'expired': return <span className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-[10px] font-bold border border-red-100">{label}</span>;
+      case 'expiring': return <span className="px-3 py-1 rounded-full bg-orange-50 text-orange-500 text-[10px] font-bold border border-orange-100">{label}</span>;
+      default: return <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-500 text-[10px] font-bold border border-emerald-100">{label}</span>;
     }
   };
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-      <div className="p-6 border-b border-gray-50 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="font-semibold text-lg">Inventory</h3>
-        <div className="flex gap-2">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search..." 
-              className="pl-9 pr-4 py-2 text-sm rounded-lg bg-gray-50 dark:bg-[#2a2a28] border border-gray-100 dark:border-white/5 outline-none focus:ring-2 focus:ring-brand-green transition-all"
-            />
-          </div>
-          <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input 
+            type="text" 
+            placeholder="Search all items..." 
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
+          />
+        </div>
+        
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          {['All', 'Fresh', 'Expiring', 'Expired'].map((f) => (
+            <button
+              key={f}
+              className={cn(
+                "px-5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border",
+                f === 'All' ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+              )}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="divide-y divide-gray-50 dark:divide-white/5">
+      <div className="space-y-3">
         <AnimatePresence>
           {items.length === 0 ? (
-            <div className="p-12 text-center">
-              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No items found. Start adding some!</p>
+            <div className="p-12 text-center bg-white rounded-3xl border border-gray-100">
+              <Package className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+              <p className="text-gray-400 font-medium">No items found. Start adding some!</p>
             </div>
           ) : (
             items.map((item) => {
@@ -50,48 +71,45 @@ export const InventoryList = () => {
               return (
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group flex items-center gap-4"
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 card-shadow"
                 >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center text-xl",
-                    getStatusColor(status).split(' ')[0]
-                  )}>
-                    {item.fridge ? '❄️' : '📦'}
+                  <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center">
+                    {getCategoryIcon(item.category || item.item_name)}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm sm:text-base truncate">{item.item_name}</h4>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">{item.category} • {item.quantity}</p>
+                    <h4 className="font-bold text-gray-800 truncate">{item.item_name}</h4>
+                    <p className="text-[10px] text-gray-400 font-medium truncate uppercase tracking-tight">
+                      {item.category || 'General'} • {item.quantity || 'N/A'}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap",
-                      getStatusColor(status)
-                    )}>
-                      {getExpiryLabel(days)}
-                    </span>
-
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0"
-                        onClick={() => updateItem(item.id, { fridge: !item.fridge })}
+                  <div className="flex flex-col items-end gap-2">
+                    {getStatusBadge(status, days)}
+                    
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateItem(item.id, { notifications_enabled: !item.notifications_enabled })}
+                        className={cn(
+                          "w-10 h-5 rounded-full transition-all relative p-1",
+                          item.notifications_enabled ? "bg-emerald-500" : "bg-gray-200"
+                        )}
                       >
-                        <Snowflake className={cn("w-4 h-4", item.fridge ? "text-blue-500" : "text-gray-300")} />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                        <div className={cn(
+                          "w-3 h-3 bg-white rounded-full transition-all",
+                          item.notifications_enabled ? "translate-x-5" : "translate-x-0"
+                        )} />
+                      </button>
+                      <button 
                         onClick={() => deleteItem(item.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -104,4 +122,3 @@ export const InventoryList = () => {
   );
 };
 
-import { Package } from 'lucide-react';
