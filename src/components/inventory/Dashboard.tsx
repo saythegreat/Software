@@ -34,8 +34,8 @@ export const Dashboard = () => {
     { name: 'Recipes', icon: UtensilsCrossed },
   ];
 
-  const expiringItems = items.filter(i => getExpiryStatus(i.expiry_date) === 'expiring' || getExpiryStatus(i.expiry_date) === 'expired');
-  const fridgeItems = items.filter(i => i.fridge);
+  const expiringItems = items.filter(i => !i.consumed && !i.wasted && (getExpiryStatus(i.expiry_date) === 'expiring' || getExpiryStatus(i.expiry_date) === 'expired'));
+  const fridgeItems = items.filter(i => i.fridge && !i.consumed && !i.wasted);
 
   const getCategoryIcon = (category: string) => {
     const cat = (category || '').toLowerCase();
@@ -237,9 +237,11 @@ export const Dashboard = () => {
       )}
 
       {activeTab === 'Categories' && (() => {
+        // Only work with active items in categories
+        const activeItems = items.filter(i => !i.consumed && !i.wasted);
         const catNames = categories.length > 0
           ? categories.map(c => c.category_name)
-          : Array.from(new Set(items.map(i => i.category || 'General')));
+          : Array.from(new Set(activeItems.map(i => i.category || 'General')));
 
         return (
           <div className="space-y-3">
@@ -250,7 +252,9 @@ export const Dashboard = () => {
               </div>
             ) : (
               catNames.map(catName => {
-                const catItems = items.filter(i => (i.category || 'General') === catName);
+                // Only active items in this category
+                const catItems = activeItems.filter(i => (i.category || 'General') === catName);
+                if (catItems.length === 0) return null; // Hide empty categories
                 const isExpanded = selectedCategory === catName;
                 return (
                   <motion.div key={catName} layout className="overflow-hidden">
@@ -269,7 +273,7 @@ export const Dashboard = () => {
                         <div className="text-left">
                           <h3 className="font-bold text-gray-800">{catName}</h3>
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                            {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
+                            {catItems.length} active {catItems.length === 1 ? 'item' : 'items'}
                           </p>
                         </div>
                       </div>
@@ -304,10 +308,7 @@ export const Dashboard = () => {
                                       {getCategoryIcon(item.category || item.item_name)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className={cn(
-                                        "font-bold text-sm text-gray-700 truncate",
-                                        (item.consumed || item.wasted) && "line-through text-gray-400"
-                                      )}>{item.item_name}</p>
+                                      <p className="font-bold text-sm text-gray-700 truncate">{item.item_name}</p>
                                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                                         {item.quantity || 'N/A'}
                                       </p>
