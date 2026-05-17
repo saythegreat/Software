@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/signup
- * Registers a new user, hashes their password, and sends a Brevo verification email.
- * Users are auto-verified on creation so they can login immediately.
+ * Registers a new user, hashes password, sends Brevo verification email.
+ * User must verify email before they can log in.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
@@ -29,40 +29,56 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (existing) {
-      return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
+      if (existing.email_verified) {
+        return NextResponse.json(
+          { error: 'An account with this email already exists. Please log in.' },
+          { status: 409 }
+        );
+      }
+      // Account exists but unverified — resend the verification email
+      const token = uuidv4();
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await supabaseAdmin
+        .from('custom_users')
+        .update({ verify_token: token, verify_token_expires_at: expires })
+        .eq('email', email.toLowerCase());
+      await sendVerificationEmail(email, full_name, token);
+      return NextResponse.json({
+        message: 'Verification email resent! Check your inbox.',
+        requiresVerification: true,
+      });
     }
 
     // Hash password
     const password_hash = await bcrypt.hash(password, 12);
 
-    // Generate verification token (kept for future email flow)
+    // Generate verification token (24h expiry)
     const verify_token = uuidv4();
     const verify_token_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    // Insert user — auto-verified so they can login immediately
+    // Insert user — NOT verified yet
     const { error: insertError } = await supabaseAdmin
       .from('custom_users')
       .insert([{
         email: email.toLowerCase(),
         full_name: full_name.trim(),
         password_hash,
-        email_verified: true,   // auto-verify so login works right away
+        email_verified: false,
         verify_token,
         verify_token_expires_at,
       }]);
 
     if (insertError) {
       console.error('Insert error:', insertError);
-      return NextResponse.json({ error: 'Failed to create account.' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create account. Please try again.' }, { status: 500 });
     }
 
-    // Send welcome email in background (non-blocking — won't fail signup if Brevo is misconfigured)
-    sendVerificationEmail(email, full_name.trim(), verify_token).catch(err => {
-      console.warn('Email send failed (non-fatal):', err?.message || err);
-    });
+    // Send verification email via Brevo
+    await sendVerificationEmail(email, full_name.trim(), verify_token);
 
     return NextResponse.json({
-      message: 'Account created! You can now log in.',
+      message: 'Account created! Please check your email to verify your account.',
+      requiresVerification: true,
     });
   } catch (err: any) {
     console.error('Signup error:', err);
