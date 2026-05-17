@@ -56,7 +56,9 @@ export const Dashboard = () => {
   const handleGenerateRecipe = async () => {
     setIsGenerating(true);
     try {
-      const itemNames = items.length > 0 ? items.map(i => i.item_name.trim().toLowerCase()) : ['ingredients'];
+      // Only use active items (not consumed or wasted)
+      const activeItems = items.filter(i => !i.consumed && !i.wasted);
+      const itemNames = activeItems.length > 0 ? activeItems.map(i => i.item_name.trim().toLowerCase()) : ['ingredients'];
       const uniqueItems = Array.from(new Set(itemNames));
       // Shuffle the array to ensure diverse suggestions
       const shuffled = [...uniqueItems].sort(() => 0.5 - Math.random());
@@ -338,12 +340,25 @@ export const Dashboard = () => {
             <p className="text-gray-400 text-sm">AI-powered suggestions based on what's expiring.</p>
           </div>
 
-          {items.length > 0 ? (
-            <div className="space-y-6">
-              {!generatedRecipes ? (
+          {(() => {
+            const activeItems = items.filter(i => !i.consumed && !i.wasted);
+            if (activeItems.length === 0) {
+              return (
+                <div className="bg-gray-50/50 p-8 rounded-3xl border border-dashed border-gray-200">
+                  <p className="text-gray-400 text-sm font-medium">
+                    {items.length > 0
+                      ? 'All your items are consumed or wasted — add new items to generate recipes!'
+                      : 'Add items expiring soon to see personalized recipe suggestions!'}
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-6">
+                {!generatedRecipes ? (
                 <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100/50">
                   <p className="text-emerald-800 text-sm leading-relaxed mb-6">
-                    You have <strong>{items.length}</strong> items in your inventory. Let's find something amazing to cook with what you have!
+                    You have <strong>{activeItems.length}</strong> active items in your inventory. Let's find something amazing to cook with what you have!
                   </p>
                   <Button 
                     onClick={handleGenerateRecipe}
@@ -436,12 +451,8 @@ export const Dashboard = () => {
                   </Button>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="bg-gray-50/50 p-8 rounded-3xl border border-dashed border-gray-200">
-              <p className="text-gray-400 text-sm font-medium">Add items expiring soon to see personalized recipe suggestions!</p>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 

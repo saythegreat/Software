@@ -7,28 +7,31 @@ import { motion } from 'framer-motion';
 export const StatsCards = () => {
   const { items } = useStore();
 
+  // Only count items that haven't been consumed or wasted
+  const activeItems = items.filter(i => !i.consumed && !i.wasted);
+
   const stats = [
     { 
       label: 'Total', 
-      value: items.length, 
+      value: activeItems.length, 
       color: 'text-gray-800', 
       bg: 'bg-white' 
     },
     { 
       label: 'Fresh', 
-      value: items.filter(i => getExpiryStatus(i.expiry_date) === 'fresh').length, 
+      value: activeItems.filter(i => getExpiryStatus(i.expiry_date) === 'fresh').length, 
       color: 'text-emerald-500', 
       bg: 'bg-white' 
     },
     { 
       label: 'Expiring', 
-      value: items.filter(i => getExpiryStatus(i.expiry_date) === 'expiring').length, 
+      value: activeItems.filter(i => getExpiryStatus(i.expiry_date) === 'expiring').length, 
       color: 'text-orange-500', 
       bg: 'bg-white' 
     },
     { 
       label: 'Expired', 
-      value: items.filter(i => getExpiryStatus(i.expiry_date) === 'expired').length, 
+      value: activeItems.filter(i => getExpiryStatus(i.expiry_date) === 'expired').length, 
       color: 'text-red-500', 
       bg: 'bg-white' 
     },
@@ -51,5 +54,3 @@ export const StatsCards = () => {
     </div>
   );
 };
-
-

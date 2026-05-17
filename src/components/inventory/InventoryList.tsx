@@ -148,7 +148,14 @@ export const InventoryList = ({ fridgeOnly = false }: { fridgeOnly?: boolean }) 
                     </div>
 
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      {getStatusBadge(status, days)}
+                      {/* Show Done/Wasted badge instead of expiry for completed items */}
+                      {isConsumed ? (
+                        <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-500 text-[10px] font-bold border border-blue-100/30 uppercase">Done ✓</span>
+                      ) : isWasted ? (
+                        <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold border border-gray-200/30 uppercase">Wasted</span>
+                      ) : (
+                        getStatusBadge(status, days)
+                      )}
 
                       <div className="flex items-center gap-1.5">
                         {!isConsumed && !isWasted && (
