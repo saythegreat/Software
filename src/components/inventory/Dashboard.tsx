@@ -95,6 +95,8 @@ export const Dashboard = () => {
       // Recipe 3: Combination
       let comboRecipe;
       const hasBakingItems = (item1.includes('milk') && item2.includes('egg')) || (item1.includes('egg') && item2.includes('milk'));
+      const fruitKeywords = ['apple', 'banana', 'orange', 'grape', 'berry', 'melon', 'mango', 'peach', 'pear', 'fruit'];
+      const hasFruit = fruitKeywords.some(f => item1.includes(f) || item2.includes(f));
       
       if (hasBakingItems) {
         comboRecipe = {
@@ -106,6 +108,18 @@ export const Dashboard = () => {
             `Whisk the ${item1} and ${item2} together, then fold into the dry mix.`,
             "Bake in an oven or cook on a skillet until golden brown.",
             "Top with syrup, frosting, or fresh fruits and enjoy!"
+          ]
+        };
+      } else if (hasFruit) {
+        comboRecipe = {
+          title: "Healthy Snack Pairing 🍎",
+          description: `A balanced pairing using your ${item1} and ${item2}.`,
+          ingredients: [item1, item2],
+          steps: [
+            "Wash any fresh fruits thoroughly and eat them raw for maximum nutrition.",
+            `If ${item1 === 'apple' ? item2 : item1} requires cooking (like an egg or meat), prepare it simply (e.g., boiled or toasted).`,
+            "Serve them side-by-side on a plate.",
+            "Enjoy this simple, wholesome snack pairing without overcomplicating things!"
           ]
         };
       } else {
