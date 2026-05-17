@@ -36,7 +36,9 @@ export const Dashboard = () => {
   const handleGenerateRecipe = async () => {
     setIsGenerating(true);
     try {
-      const mainIngredient = expiringItems[0]?.item_name || 'Available Ingredients';
+      const itemPool = items.length > 0 ? items : [{ item_name: 'Available Ingredients' }];
+      const randomItem = itemPool[Math.floor(Math.random() * itemPool.length)];
+      const mainIngredient = randomItem.item_name;
       
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${mainIngredient.trim().toLowerCase()}`);
       const data = await res.json();
@@ -46,7 +48,7 @@ export const Dashboard = () => {
         setGeneratedRecipe({
           title: "Creative Free-style",
           description: `We couldn't find a standard recipe specifically for "${mainIngredient}". However, here's a general guide for unique ingredients!`,
-          ingredients: [mainIngredient, ...expiringItems.slice(1, 3).map(i => i.item_name)],
+          ingredients: [mainIngredient, ...items.filter(i => i.item_name !== mainIngredient).slice(0, 2).map(i => i.item_name)],
           steps: [
             `Evaluate if ${mainIngredient} is best eaten raw, boiled, or sautéed.`,
             "Chop your ingredients into bite-sized pieces.",
@@ -80,11 +82,12 @@ export const Dashboard = () => {
 
     } catch (error) {
       console.error(error);
-      const mainIngredient = expiringItems[0]?.item_name || 'Available Ingredients';
+      const itemPool = items.length > 0 ? items : [{ item_name: 'Available Ingredients' }];
+      const mainIngredient = itemPool[0].item_name;
       setGeneratedRecipe({
         title: `${mainIngredient} Special Mix`,
         description: `A delicious and healthy way to use your ${mainIngredient.toLowerCase()}.`,
-        ingredients: expiringItems.slice(0, 3).map(i => i.item_name),
+        ingredients: items.slice(0, 3).map(i => i.item_name),
         steps: [
           `Prepare the ${mainIngredient.toLowerCase()} by washing and cutting.`,
           "Sauté with some garlic and olive oil.",
@@ -195,12 +198,12 @@ export const Dashboard = () => {
             <p className="text-gray-400 text-sm">AI-powered suggestions based on what's expiring.</p>
           </div>
 
-          {expiringItems.length > 0 ? (
+          {items.length > 0 ? (
             <div className="space-y-6">
               {!generatedRecipe ? (
                 <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100/50">
                   <p className="text-emerald-800 text-sm leading-relaxed mb-6">
-                    You have <strong>{expiringItems.length}</strong> items expiring soon. We can help you cook something amazing with your <strong>{expiringItems[0].item_name}</strong>!
+                    You have <strong>{items.length}</strong> items in your inventory. Let's find something amazing to cook with what you have!
                   </p>
                   <Button 
                     onClick={handleGenerateRecipe}
