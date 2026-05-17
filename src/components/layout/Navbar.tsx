@@ -3,11 +3,16 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { Leaf, Bell, LogOut, User as UserIcon } from 'lucide-react';
+import { Leaf, Bell, LogOut, User as UserIcon, Edit2, Check, X } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 export const Navbar = () => {
-  const { user, signOut, items } = useStore();
+  const { user, setUser, signOut, items } = useStore();
   const [showProfile, setShowProfile] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState(user?.user_metadata?.full_name || '');
+  const [isUpdating, setIsUpdating] = useState(false);
   
   const expiringCount = items.filter(i => {
     const today = new Date();
@@ -21,6 +26,24 @@ export const Navbar = () => {
   const handleSignOut = async () => {
     await signOut();
     window.location.href = '/';
+  };
+
+  const handleUpdateName = async () => {
+    if (!newName.trim()) return;
+    setIsUpdating(true);
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { full_name: newName.trim() }
+      });
+      if (error) throw error;
+      setUser(data.user);
+      setIsEditingName(false);
+      toast.success('Name updated successfully!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update name');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -44,7 +67,11 @@ export const Navbar = () => {
           
           <div className="relative">
             <button 
-              onClick={() => setShowProfile(!showProfile)}
+              onClick={() => {
+                setShowProfile(!showProfile);
+                setIsEditingName(false);
+                setNewName(user?.user_metadata?.full_name || '');
+              }}
               className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100 shadow-sm hover:bg-emerald-100 transition-colors"
               title="Profile"
             >
@@ -52,14 +79,45 @@ export const Navbar = () => {
             </button>
 
             {showProfile && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-lg p-2 z-50 animate-in fade-in zoom-in duration-200">
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-lg p-2 z-50 animate-in fade-in zoom-in duration-200">
                 <div className="px-3 py-2 border-b border-gray-50 mb-1">
-                  <p className="text-xs font-bold text-gray-800 truncate">{user?.user_metadata?.full_name || 'FreshTrack User'}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{user?.email}</p>
+                  {!isEditingName ? (
+                    <div className="flex items-center justify-between group">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-gray-800 truncate pr-2">
+                          {user?.user_metadata?.full_name || 'FreshTrack User'}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setIsEditingName(true)} 
+                        className="text-gray-300 hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 mb-1">
+                      <input 
+                        type="text" 
+                        value={newName} 
+                        onChange={(e) => setNewName(e.target.value)} 
+                        className="w-full text-xs font-bold text-gray-800 border border-emerald-200 rounded px-1.5 py-1 outline-none focus:ring-1 focus:ring-emerald-500"
+                        autoFocus
+                        placeholder="Enter your name"
+                      />
+                      <button onClick={handleUpdateName} disabled={isUpdating} className="text-emerald-500 hover:text-emerald-700 disabled:opacity-50">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setIsEditingName(false)} disabled={isUpdating} className="text-gray-400 hover:text-red-500 disabled:opacity-50">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email}</p>
                 </div>
                 <button 
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-1"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Sign Out

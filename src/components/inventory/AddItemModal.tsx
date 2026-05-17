@@ -30,10 +30,11 @@ export const AddItemModal = ({ onClose }: AddItemModalProps) => {
       toast.success('Item added successfully!');
       onClose();
     } catch (error: any) {
-      if (error.message === 'Failed to fetch') {
+      const msg = error?.message || String(error);
+      if (msg.includes('Failed to fetch')) {
         toast.error('Waking up secure server... Please try again in a few seconds.');
       } else {
-        toast.error(error.message || 'An unexpected error occurred while saving.');
+        toast.error(msg || 'An unexpected error occurred while saving.');
       }
     } finally {
       setLoading(false);
