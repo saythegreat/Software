@@ -15,6 +15,7 @@ export const AuthContainer = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
 
@@ -53,6 +54,7 @@ export const AuthContainer = () => {
         if (!res.ok) throw new Error(data.error || 'Signup failed.');
 
         setSignupDone(true);
+        setPassword(''); // Clear password so it doesn't auto-fill anywhere
         toast.success('Verification email sent! Check your inbox. 📧');
       }
     } catch (error: any) {
@@ -72,7 +74,7 @@ export const AuthContainer = () => {
         const res = await fetch('/api/auth/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, code: password }), // repurpose password state for code
+          body: JSON.stringify({ email, code: verificationCode }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Verification failed.');
@@ -104,8 +106,9 @@ export const AuthContainer = () => {
             <div>
               <input
                 type="text"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="off"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
                 className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-center text-2xl font-bold tracking-widest text-gray-800 placeholder:text-gray-300"
                 placeholder="000000"
                 maxLength={6}

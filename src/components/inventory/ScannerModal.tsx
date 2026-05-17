@@ -244,13 +244,17 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
           if (!isNaN(parsed.getTime())) {
             setFormData(f => ({ ...f, expiry_date: parsed.toISOString().split('T')[0] }));
             toast.success(`Date detected: ${dates[0]}`, { id: 'ocr' });
+          } else {
+            toast.dismiss('ocr');
           }
-        } catch {}
+        } catch {
+          toast.dismiss('ocr');
+        }
       } else {
-        toast.error('No date found — enter it manually.', { id: 'ocr' });
+        toast.dismiss('ocr'); // quiet fallback
       }
     } catch {
-      toast.error('OCR failed. Please enter date manually.', { id: 'ocr' });
+      toast.dismiss('ocr'); // quiet fallback
     } finally {
       setOcrLoading(false);
       setStep('confirm');
