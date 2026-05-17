@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
@@ -8,6 +9,7 @@ import { motion } from 'framer-motion';
 import { Leaf } from 'lucide-react';
 
 export const AuthContainer = () => {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,6 +25,7 @@ export const AuthContainer = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success('Logged in successfully!');
+        router.push('/dashboard');
       } else {
         if (!name.trim()) {
           toast.error('Please enter your name.');

@@ -7,8 +7,10 @@ interface AppState {
   items: InventoryItem[];
   categories: Category[];
   loading: boolean;
+  sessionLoading: boolean;
   
   setUser: (user: any) => void;
+  setSessionLoading: (v: boolean) => void;
   fetchItems: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   addItem: (item: Partial<InventoryItem>) => Promise<void>;
@@ -22,8 +24,10 @@ export const useStore = create<AppState>((set, get) => ({
   items: [],
   categories: [],
   loading: false,
+  sessionLoading: true, // true until first getSession() resolves
 
   setUser: (user) => set({ user }),
+  setSessionLoading: (v) => set({ sessionLoading: v }),
 
   fetchItems: async () => {
     set({ loading: true });

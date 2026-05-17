@@ -33,9 +33,9 @@ export const LandingPage = () => {
   ];
 
   const testimonials = [
-    { name: "Priya S.", role: "Home cook", stars: 5, quote: "I used to throw out ₹800 of vegetables every week. FreshTrack has basically eliminated that. The recipe suggestions are genius." },
-    { name: "Arjun M.", role: "College student", stars: 5, quote: "As someone living alone this is a lifesaver. I always forgot what was in my fridge. Now I actually use everything I buy." },
-    { name: "Deepa R.", role: "Working parent", stars: 5, quote: "The alerts alone are worth it. My family wastes maybe 10% of what we used to. The analytics are surprisingly motivating." },
+    { name: "Skanda", role: "Hostel Student", stars: 5, quote: "FreshTrack made hostel food management much easier for us. We were able to track food items properly and identify products that were close to expiry before they got wasted." },
+    { name: "Harikerthan", role: "Hostel Student", stars: 5, quote: "We started using FreshTrack in our hostel kitchen and it helped a lot in checking expired items and managing stock efficiently. The interface is simple and very useful." },
+    { name: "Kushal", role: "Hostel Student", stars: 5, quote: "FreshTrack helped us monitor food storage in the hostel and reduced food waste by tracking expiry dates accurately. It made inventory management much more organized." },
   ];
 
   const stats = [
@@ -102,15 +102,7 @@ export const LandingPage = () => {
               </div>
             </div>
 
-            {/* Inline Social Proof */}
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 font-medium">
-              <div className="flex -space-x-2">
-                {["bg-emerald-400","bg-teal-400","bg-green-500","bg-cyan-400"].map((c, i) => (
-                  <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-white flex items-center justify-center text-white text-xs font-bold`}>{String.fromCharCode(65+i)}</div>
-                ))}
-              </div>
-              <span>Join <strong className="text-gray-800">12,000+</strong> households tracking freshness</span>
-            </div>
+
           </motion.div>
 
           {/* ── APP MOCKUP ── */}

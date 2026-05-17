@@ -5,10 +5,10 @@ import { useStore } from '../../store/useStore';
 import { InventoryList } from './InventoryList';
 import { StatsCards } from './StatsCards';
 import { Button } from '../ui/Button';
-import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed, ChevronDown, ChevronUp, ScanLine } from 'lucide-react';
+import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed, ChevronDown, ChevronUp, ScanLine, Utensils, Milk, Egg, Carrot, Beef } from 'lucide-react';
 import { AddItemModal } from './AddItemModal';
 import { ScannerModal } from './ScannerModal';
-import { getExpiryStatus } from '../../utils/dateUtils';
+import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -17,6 +17,7 @@ export const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Inventory');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipes, setGeneratedRecipes] = useState<any[] | null>(null);
   const [expandedRecipeIndex, setExpandedRecipeIndex] = useState<number | null>(null);
@@ -35,6 +36,22 @@ export const Dashboard = () => {
 
   const expiringItems = items.filter(i => getExpiryStatus(i.expiry_date) === 'expiring' || getExpiryStatus(i.expiry_date) === 'expired');
   const fridgeItems = items.filter(i => i.fridge);
+
+  const getCategoryIcon = (category: string) => {
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('milk') || cat.includes('dairy')) return <Milk className="w-5 h-5 text-blue-500" />;
+    if (cat.includes('egg')) return <Egg className="w-5 h-5 text-yellow-600" />;
+    if (cat.includes('veg') || cat.includes('carrot')) return <Carrot className="w-5 h-5 text-orange-500" />;
+    if (cat.includes('meat') || cat.includes('chicken') || cat.includes('beef')) return <Beef className="w-5 h-5 text-red-500" />;
+    if (cat.includes('fruit') || cat.includes('apple') || cat.includes('banana')) return <span className="text-lg">🍎</span>;
+    return <Utensils className="w-5 h-5 text-gray-400" />;
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'expired') return 'bg-red-50 text-red-500 border-red-100';
+    if (status === 'expiring') return 'bg-orange-50 text-orange-500 border-orange-100';
+    return 'bg-green-50 text-green-600 border-green-100';
+  };
 
   const handleGenerateRecipe = async () => {
     setIsGenerating(true);
@@ -217,44 +234,101 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {activeTab === 'Categories' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {categories.length > 0 ? (
-            categories.map(category => (
-              <div key={category.id} className="bg-white p-6 rounded-3xl border border-gray-100 flex items-center justify-between card-shadow hover:scale-[1.02] transition-all">
-                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                      <LayoutGrid className="w-6 h-6" />
-                   </div>
-                   <div>
-                     <h3 className="font-bold text-gray-800">{category.category_name}</h3>
-                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                       {items.filter(i => i.category === category.category_name).length} items
-                     </p>
-                   </div>
-                 </div>
+      {activeTab === 'Categories' && (() => {
+        const catNames = categories.length > 0
+          ? categories.map(c => c.category_name)
+          : Array.from(new Set(items.map(i => i.category || 'General')));
+
+        return (
+          <div className="space-y-3">
+            {catNames.length === 0 ? (
+              <div className="p-16 text-center bg-white rounded-[2rem] border border-gray-100/50 card-shadow">
+                <LayoutGrid className="w-16 h-16 text-gray-100 mx-auto mb-4" />
+                <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">No categories yet</p>
               </div>
-            ))
-          ) : (
-            // If no categories in DB, show unique categories from items
-            Array.from(new Set(items.map(i => i.category || 'General'))).map(catName => (
-              <div key={catName} className="bg-white p-6 rounded-3xl border border-gray-100 flex items-center justify-between card-shadow">
-                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                      <LayoutGrid className="w-6 h-6" />
-                   </div>
-                   <div>
-                     <h3 className="font-bold text-gray-800">{catName}</h3>
-                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                       {items.filter(i => (i.category || 'General') === catName).length} items
-                     </p>
-                   </div>
-                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+            ) : (
+              catNames.map(catName => {
+                const catItems = items.filter(i => (i.category || 'General') === catName);
+                const isExpanded = selectedCategory === catName;
+                return (
+                  <motion.div key={catName} layout className="overflow-hidden">
+                    {/* Category Card — clickable header */}
+                    <button
+                      onClick={() => setSelectedCategory(isExpanded ? null : catName)}
+                      className={cn(
+                        "w-full bg-white p-5 rounded-3xl border flex items-center justify-between card-shadow transition-all",
+                        isExpanded ? "border-emerald-200 rounded-b-none" : "border-gray-100 hover:border-emerald-100"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                          {getCategoryIcon(catName)}
+                        </div>
+                        <div className="text-left">
+                          <h3 className="font-bold text-gray-800">{catName}</h3>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                            {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                        isExpanded ? "bg-emerald-100 text-emerald-600" : "bg-gray-50 text-gray-400"
+                      )}>
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded items list */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="border border-t-0 border-emerald-200 rounded-b-3xl bg-emerald-50/30 overflow-hidden"
+                        >
+                          {catItems.length === 0 ? (
+                            <p className="text-center text-gray-400 text-sm font-medium py-8">No items in this category.</p>
+                          ) : (
+                            <div className="divide-y divide-emerald-100/50">
+                              {catItems.map(item => {
+                                const status = getExpiryStatus(item.expiry_date);
+                                const days = getDaysLeft(item.expiry_date);
+                                const label = getExpiryLabel(days);
+                                return (
+                                  <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
+                                    <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                                      {getCategoryIcon(item.category || item.item_name)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn(
+                                        "font-bold text-sm text-gray-700 truncate",
+                                        (item.consumed || item.wasted) && "line-through text-gray-400"
+                                      )}>{item.item_name}</p>
+                                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                        {item.quantity || 'N/A'}
+                                      </p>
+                                    </div>
+                                    <span className={cn(
+                                      "px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase",
+                                      getStatusColor(status)
+                                    )}>{label}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        );
+      })()}
       
       {activeTab === 'Recipes' && (
         <div className="bg-white p-8 rounded-[2rem] border border-gray-100 text-center space-y-6">

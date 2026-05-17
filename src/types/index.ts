@@ -13,6 +13,8 @@ export type InventoryItem = {
   quantity: string | null;
   expiry_date: string;
   fridge: boolean;
+  consumed: boolean;
+  wasted: boolean;
   notifications_enabled: boolean;
   created_at: string;
 };

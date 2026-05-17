@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from 'sonner';
+import { AuthProvider } from '../components/auth/AuthProvider';
 
 export const metadata: Metadata = {
   title: "FreshTrack — Smart Food Expiry Tracker",
@@ -16,8 +17,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <Toaster position="top-right" richColors />
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

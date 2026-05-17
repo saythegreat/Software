@@ -33,12 +33,12 @@ export const InventoryList = ({ fridgeOnly = false }: { fridgeOnly?: boolean }) 
   };
 
   const handleConsume = async (id: string, name: string) => {
-    await updateItem(id, { consumed: true, wasted: false } as any);
+    await updateItem(id, { consumed: true, wasted: false });
     toast.success(`${name} marked as consumed! 🎉`);
   };
 
   const handleWaste = async (id: string, name: string) => {
-    await updateItem(id, { wasted: true, consumed: false } as any);
+    await updateItem(id, { wasted: true, consumed: false });
     toast.error(`${name} marked as wasted.`);
   };
 
@@ -50,8 +50,8 @@ export const InventoryList = ({ fridgeOnly = false }: { fridgeOnly?: boolean }) 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
     const status = getExpiryStatus(item.expiry_date);
-    const isConsumed = (item as any).consumed;
-    const isWasted = (item as any).wasted;
+    const isConsumed = item.consumed;
+    const isWasted = item.wasted;
     const matchesFilter =
       activeFilter === 'All' ||
       (activeFilter === 'Fresh' && status === 'fresh') ||
@@ -113,8 +113,8 @@ export const InventoryList = ({ fridgeOnly = false }: { fridgeOnly?: boolean }) 
             filteredItems.map((item) => {
               const status = getExpiryStatus(item.expiry_date);
               const days = getDaysLeft(item.expiry_date);
-              const isConsumed = (item as any).consumed;
-              const isWasted = (item as any).wasted;
+              const isConsumed = item.consumed;
+              const isWasted = item.wasted;
 
               return (
                 <motion.div

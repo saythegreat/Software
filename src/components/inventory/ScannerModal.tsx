@@ -31,33 +31,60 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
   const scanControls = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    return () => { try { scanControls.current?.stop(); } catch {} };
+    return () => {
+      try { scanControls.current?.stop(); } catch {}
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
   const startScanning = async () => {
     setScanning(true);
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      if (devices.length === 0) {
+        toast.error('No camera found on this device.');
+        setScanning(false);
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       const deviceId = devices[0]?.deviceId;
       if (deviceId && videoRef.current) {
-        scanControls.current = await codeReader.current.decodeFromVideoDevice(deviceId, videoRef.current, async (result, err) => {
-          if (result) {
-            scanControls.current?.stop();
-            setScanning(false);
-            await handleBarcodeDetected(result.getText());
+        scanControls.current = await codeReader.current.decodeFromVideoDevice(
+          deviceId,
+          videoRef.current,
+          async (result) => {
+            if (result) {
+              scanControls.current?.stop();
+              streamRef.current?.getTracks().forEach(t => t.stop());
+              setScanning(false);
+              await handleBarcodeDetected(result.getText());
+            }
           }
-        });
+        );
       }
     } catch {
-      toast.error('Camera access denied. Please enter barcode manually.');
+      toast.error('Camera access denied. Please allow camera permission and try again.');
       setScanning(false);
     }
   };
 
   const stopScanning = () => {
     try { scanControls.current?.stop(); } catch {}
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
     setScanning(false);
   };
 
@@ -197,7 +224,13 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                 </button>
               ) : (
                 <div className="relative rounded-2xl overflow-hidden bg-black aspect-video">
-                  <video ref={videoRef} className="w-full h-full object-cover" />
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     onClick={stopScanning}
                     className="absolute top-3 right-3 p-2 bg-black/60 rounded-full text-white hover:bg-black/80"
