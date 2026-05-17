@@ -1,0 +1,90 @@
+/**
+ * Brevo (formerly Sendinblue) email sender — server-side only.
+ * Sends transactional emails via the Brevo API.
+ */
+import * as Brevo from '@getbrevo/brevo';
+
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY || ''
+);
+
+const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@freshtrack.app';
+const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'FreshTrack';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+export async function sendVerificationEmail(
+  toEmail: string,
+  toName: string,
+  token: string
+): Promise<void> {
+  const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
+
+  const email = new Brevo.SendSmtpEmail();
+  email.sender = { name: SENDER_NAME, email: SENDER_EMAIL };
+  email.to = [{ email: toEmail, name: toName }];
+  email.subject = 'Verify your FreshTrack account';
+  email.htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Verify your FreshTrack account</title>
+    </head>
+    <body style="margin:0;padding:0;background:#F8FAF9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAF9;padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+              <!-- Header -->
+              <tr>
+                <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:40px 48px;text-align:center;">
+                  <div style="font-size:32px;margin-bottom:8px;">🌿</div>
+                  <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;">FreshTrack</h1>
+                  <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;">Smart Food Expiry Tracker</p>
+                </td>
+              </tr>
+              <!-- Body -->
+              <tr>
+                <td style="padding:48px;">
+                  <h2 style="margin:0 0 12px;color:#1f2937;font-size:22px;font-weight:700;">Welcome, ${toName}! 👋</h2>
+                  <p style="margin:0 0 28px;color:#6b7280;font-size:15px;line-height:1.6;">
+                    Thanks for signing up for FreshTrack. Click the button below to verify your email address and start managing your kitchen smarter.
+                  </p>
+                  <!-- CTA Button -->
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${verifyUrl}"
+                          style="display:inline-block;background:linear-gradient(135deg,#059669 0%,#10b981 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:50px;letter-spacing:0.03em;box-shadow:0 4px 14px rgba(5,150,105,0.35);">
+                          ✓ Verify My Email
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:28px 0 0;color:#9ca3af;font-size:13px;text-align:center;line-height:1.5;">
+                    This link expires in <strong style="color:#374151;">24 hours</strong>.<br/>
+                    If you didn't sign up, you can safely ignore this email.
+                  </p>
+                </td>
+              </tr>
+              <!-- Footer -->
+              <tr>
+                <td style="padding:24px 48px;border-top:1px solid #f3f4f6;text-align:center;">
+                  <p style="margin:0;color:#d1d5db;font-size:12px;">
+                    © 2025 FreshTrack · Reducing food waste, one fridge at a time 🌱
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  await apiInstance.sendTransacEmail(email);
+}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { X, Camera, Upload, CheckCircle } from 'lucide-react';
+import { X, Camera, Upload, CheckCircle, FlipHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -18,6 +18,8 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   const [scanning, setScanning] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [formData, setFormData] = useState({
     item_name: '',
     brand: '',
@@ -29,56 +31,179 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReader = useRef(new BrowserMultiFormatReader());
-  const scanControls = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const scanningRef = useRef(false); // avoid stale closures in async callbacks
 
-  useEffect(() => {
-    // Stop scanner and release camera on unmount
-    return () => {
-      try { scanControls.current?.stop(); } catch {}
-    };
+  // Full cleanup: stop all camera tracks and reset reader
+  const stopCamera = useCallback(() => {
+    scanningRef.current = false;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    readerRef.current = null;
+    setScanning(false);
+    setCameraError('');
   }, []);
 
-  const startScanning = async () => {
-    setScanning(true);
-    try {
-      const video = videoRef.current;
-      if (!video) { setScanning(false); return; }
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
-      // decodeFromConstraints handles getUserMedia + video attachment internally
-      // This avoids all stream conflicts from manual getUserMedia + decodeFromVideoDevice
-      scanControls.current = await codeReader.current.decodeFromConstraints(
-        { video: { facingMode: { ideal: 'environment' } } },
-        video,
-        async (result, err) => {
-          if (result) {
-            scanControls.current?.stop();
-            setScanning(false);
-            await handleBarcodeDetected(result.getText());
-          }
-          // scan errors fire constantly when no barcode visible — ignore them
+  // Attach stream to video element and start ZXing reader
+  const startReader = useCallback(async (stream: MediaStream) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Manually attach stream — this is key for mobile
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');  // critical for iOS Safari
+    video.setAttribute('muted', 'true');
+    video.muted = true;
+
+    // Wait for video to be ready and playing
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => {
+        video.play().then(resolve).catch(reject);
+      };
+      video.onerror = reject;
+      // Fallback timeout in case onloadedmetadata doesn't fire
+      setTimeout(resolve, 2000);
+    });
+
+    if (!scanningRef.current) return; // component unmounted
+
+    // Use ZXing to decode from the now-playing video element
+    const reader = new BrowserMultiFormatReader();
+    readerRef.current = reader;
+
+    // Poll the video frames for barcodes
+    const decodeLoop = async () => {
+      if (!scanningRef.current || !videoRef.current) return;
+      try {
+        const result = await reader.decodeOnce(videoRef.current);
+        if (result && scanningRef.current) {
+          stopCamera();
+          await handleBarcodeDetected(result.getText());
         }
-      );
-    } catch (err: any) {
-      const msg = String(err?.message || err || '');
-      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('notallowed')) {
-        toast.error('Camera permission denied — please allow camera access in your browser settings.');
-      } else if (msg.toLowerCase().includes('notfound') || msg.toLowerCase().includes('nodevice')) {
-        toast.error('No camera found on this device.');
-      } else {
-        toast.error('Camera failed to start. Use the manual barcode entry below.');
-        console.error('[Scanner]', err);
+      } catch (err: any) {
+        // "NotFoundException" fires when no barcode found — keep looping
+        if (err?.name === 'NotFoundException' || err?.message?.includes('No MultiFormat')) {
+          if (scanningRef.current) {
+            requestAnimationFrame(decodeLoop);
+          }
+        } else if (scanningRef.current) {
+          console.warn('[Scanner] decode error:', err);
+          requestAnimationFrame(decodeLoop);
+        }
       }
+    };
+
+    decodeLoop();
+  }, [stopCamera]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startScanning = async () => {
+    setCameraError('');
+    setScanning(true);
+    scanningRef.current = true;
+
+    // Short delay to let React render the <video> element before we attach the stream
+    await new Promise(r => setTimeout(r, 150));
+
+    if (!videoRef.current) {
       setScanning(false);
+      scanningRef.current = false;
+      setCameraError('Video element not found. Please try again.');
+      return;
+    }
+
+    try {
+      // Request camera with mobile-friendly constraints
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      if (!scanningRef.current) {
+        // User closed modal before camera started
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
+      await startReader(stream);
+    } catch (err: any) {
+      scanningRef.current = false;
+      setScanning(false);
+      const msg = String(err?.message || err?.name || err || '').toLowerCase();
+
+      if (msg.includes('permission') || msg.includes('notallowed') || msg.includes('denied')) {
+        const errorMsg = 'Camera permission denied. Please allow camera access in your browser settings and try again.';
+        setCameraError(errorMsg);
+        toast.error(errorMsg);
+      } else if (msg.includes('notfound') || msg.includes('nodevice') || msg.includes('devicenotfound')) {
+        const errorMsg = 'No camera found on this device.';
+        setCameraError(errorMsg);
+        toast.error(errorMsg);
+      } else if (msg.includes('overconstrained') || msg.includes('constraint')) {
+        // Retry with simpler constraints (some Android devices)
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          streamRef.current = stream;
+          scanningRef.current = true;
+          setScanning(true);
+          await startReader(stream);
+        } catch {
+          const errorMsg = 'Camera failed to start. Try the manual entry below.';
+          setCameraError(errorMsg);
+          toast.error(errorMsg);
+          setScanning(false);
+        }
+      } else {
+        const errorMsg = 'Camera failed to start. Try the manual barcode entry below.';
+        setCameraError(errorMsg);
+        console.error('[Scanner]', err);
+        toast.error(errorMsg);
+      }
     }
   };
 
-  const stopScanning = () => {
-    try { scanControls.current?.stop(); } catch {}
-    if (videoRef.current) { videoRef.current.srcObject = null; }
-    setScanning(false);
-  };
+  const switchCamera = async () => {
+    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacing);
+    stopCamera();
+    // Small delay then restart with new facing mode
+    await new Promise(r => setTimeout(r, 200));
+    // startScanning uses facingMode state — update it first then call
+    setScanning(true);
+    scanningRef.current = true;
+    await new Promise(r => setTimeout(r, 150));
 
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: newFacing } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      await startReader(stream);
+    } catch (err) {
+      console.error('[Scanner] switch camera error:', err);
+      setScanning(false);
+    }
+  };
 
   const handleBarcodeDetected = async (barcode: string) => {
     setFormData(f => ({ ...f, barcode }));
@@ -152,7 +277,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     } catch (error: any) {
       const msg = error?.message || String(error);
       if (msg.includes('Failed to fetch')) {
-        toast.error('Waking up secure server... Please try again.');
+        toast.error('Connection error. Please try again.');
       } else {
         toast.error(msg || 'Failed to save item.');
       }
@@ -180,7 +305,10 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
             <h3 className="text-lg font-bold text-gray-900">Smart Scanner</h3>
             <p className="text-xs text-gray-400 mt-0.5">Scan barcode → detect expiry → save</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+          <button
+            onClick={() => { stopCamera(); onClose(); }}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -190,7 +318,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
           {steps.map(s => (
             <button
               key={s.key}
-              onClick={() => setStep(s.key as any)}
+              onClick={() => { if (scanning) stopCamera(); setStep(s.key as any); }}
               className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 ${
                 step === s.key
                   ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50'
@@ -206,35 +334,59 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
           {/* Step 1: Barcode */}
           {step === 'barcode' && (
             <div className="space-y-6">
-              {!scanning ? (
+              {/* Camera area — always rendered so videoRef is available */}
+              <div className={scanning ? 'block' : 'hidden'}>
+                <div className="relative rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: '4/3' }}>
+                  {/* video MUST always be in the DOM when scanning=true */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  {/* Scanning overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-56 h-36 border-2 border-emerald-400 rounded-xl opacity-80 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                  </div>
+                  <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs font-medium drop-shadow">
+                    Center barcode in the frame
+                  </p>
+                  {/* Controls */}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                      onClick={switchCamera}
+                      className="p-2 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+                      title="Switch camera"
+                    >
+                      <FlipHorizontal className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={stopCamera}
+                      className="p-2 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Open Camera button */}
+              {!scanning && (
                 <button
                   onClick={startScanning}
                   className="w-full flex flex-col items-center justify-center gap-4 p-10 rounded-2xl bg-emerald-50 border-2 border-dashed border-emerald-200 hover:bg-emerald-100 transition-colors text-emerald-700"
                 >
                   <Camera className="w-12 h-12" />
                   <span className="font-bold text-sm">Open Camera to Scan Barcode</span>
+                  <span className="text-xs text-emerald-500 font-medium">Uses rear camera</span>
                 </button>
-              ) : (
-                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={stopScanning}
-                    className="absolute top-3 right-3 p-2 bg-black/60 rounded-full text-white hover:bg-black/80"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-48 h-32 border-2 border-emerald-400 rounded-xl opacity-70" />
-                  </div>
-                  <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs font-medium">
-                    Center barcode in the frame
-                  </p>
+              )}
+
+              {/* Camera error message */}
+              {cameraError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-medium text-center">
+                  {cameraError}
                 </div>
               )}
 
@@ -247,6 +399,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
               <div>
                 <input
                   type="text"
+                  inputMode="numeric"
                   placeholder="Enter barcode number..."
                   value={formData.barcode}
                   onChange={e => setFormData(f => ({ ...f, barcode: e.target.value }))}
@@ -288,6 +441,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                   <input
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     onChange={handleImageUpload}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />

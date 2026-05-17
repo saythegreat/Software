@@ -27,3 +27,10 @@ export type UserProfile = {
   full_name?: string;
   avatar_url?: string;
 };
+
+/** The user object stored in the JWT session cookie and Zustand store. */
+export type SessionUser = {
+  id: string;
+  email: string;
+  full_name: string;
+};

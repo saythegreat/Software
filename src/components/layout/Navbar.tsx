@@ -3,25 +3,25 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { Leaf, Bell, LogOut, User as UserIcon, Edit2, Check, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { Leaf, LogOut, Edit2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Navbar = () => {
   const { user, setUser, signOut, items } = useStore();
   const [showProfile, setShowProfile] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [newName, setNewName] = useState(user?.user_metadata?.full_name || '');
+  const [newName, setNewName] = useState(user?.full_name || '');
   const [isUpdating, setIsUpdating] = useState(false);
   
   const expiringCount = items.filter(i => {
+    if (i.consumed || i.wasted) return false;
     const today = new Date();
     today.setHours(0,0,0,0);
     const expiry = new Date(i.expiry_date);
     return expiry.getTime() <= today.getTime() + (3 * 24 * 60 * 60 * 1000);
   }).length;
 
-  const initials = user?.email?.substring(0, 3).toUpperCase() || 'USR';
+  const initials = (user?.full_name || user?.email || 'USR').substring(0, 3).toUpperCase();
 
   const handleSignOut = async () => {
     await signOut();
@@ -29,14 +29,18 @@ export const Navbar = () => {
   };
 
   const handleUpdateName = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || !user) return;
     setIsUpdating(true);
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { full_name: newName.trim() }
+      const res = await fetch('/api/auth/update-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: newName.trim() }),
       });
-      if (error) throw error;
-      setUser(data.user);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update name.');
+      // Update local user state
+      setUser({ ...user, full_name: newName.trim() });
       setIsEditingName(false);
       toast.success('Name updated successfully!');
     } catch (error: any) {
@@ -70,7 +74,7 @@ export const Navbar = () => {
               onClick={() => {
                 setShowProfile(!showProfile);
                 setIsEditingName(false);
-                setNewName(user?.user_metadata?.full_name || '');
+                setNewName(user?.full_name || '');
               }}
               className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xs border border-emerald-100 shadow-sm hover:bg-emerald-100 transition-colors"
               title="Profile"
@@ -85,7 +89,7 @@ export const Navbar = () => {
                     <div className="flex items-center justify-between group">
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-800 truncate pr-2">
-                          {user?.user_metadata?.full_name || 'FreshTrack User'}
+                          {user?.full_name || 'FreshTrack User'}
                         </p>
                       </div>
                       <button 
@@ -130,5 +134,3 @@ export const Navbar = () => {
     </nav>
   );
 };
-
-

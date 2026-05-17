@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { InventoryItem, Category } from '../types';
+import type { InventoryItem, Category, SessionUser } from '../types';
 
 interface AppState {
-  user: any | null;
+  user: SessionUser | null;
   items: InventoryItem[];
   categories: Category[];
   loading: boolean;
   sessionLoading: boolean;
   
-  setUser: (user: any) => void;
+  setUser: (user: SessionUser | null) => void;
   setSessionLoading: (v: boolean) => void;
   fetchItems: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -24,7 +24,7 @@ export const useStore = create<AppState>((set, get) => ({
   items: [],
   categories: [],
   loading: false,
-  sessionLoading: true, // true until first getSession() resolves
+  sessionLoading: true, // true until first /api/auth/session resolves
 
   setUser: (user) => set({ user }),
   setSessionLoading: (v) => set({ sessionLoading: v }),
@@ -89,7 +89,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/signout', { method: 'POST' });
     set({ user: null, items: [], categories: [] });
   }
 }));

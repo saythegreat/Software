@@ -2,19 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { Leaf } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Leaf, Mail } from 'lucide-react';
 
 export const AuthContainer = () => {
   const router = useRouter();
+  const { setUser } = useStore();
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,8 +24,16 @@ export const AuthContainer = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Login failed.');
+
+        setUser(data.user);
         toast.success('Logged in successfully!');
         router.push('/dashboard');
       } else {
@@ -32,32 +42,56 @@ export const AuthContainer = () => {
           setLoading(false);
           return;
         }
-        const redirectUrl = `${window.location.origin}/auth/verify`;
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: {
-              full_name: name.trim(),
-            },
-          },
+
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, full_name: name.trim() }),
         });
-        if (error) throw error;
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Signup failed.');
+
+        setSignupDone(true);
         toast.success('Account created! Check your email to verify.');
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
-      const msg = error?.message || String(error);
-      if (msg.includes('Failed to fetch')) {
-        toast.error('Waking up secure server... Please try again in a few seconds.');
-      } else {
-        toast.error(msg || 'An unexpected error occurred');
-      }
+      toast.error(error.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Show "check your email" screen after successful signup
+  if (signupDone) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-brand-bg">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-emerald-900/5 border border-gray-100 text-center"
+        >
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-emerald-100 shadow-inner">
+            <Mail className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-3">Check your inbox</h2>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            We sent a verification link to <strong className="text-gray-600">{email}</strong>. Click the link to activate your account.
+          </p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+            The link expires in 24 hours
+          </p>
+          <button
+            onClick={() => { setSignupDone(false); setIsLogin(true); }}
+            className="mt-6 text-xs text-emerald-700 font-bold hover:underline"
+          >
+            Back to Login
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-brand-bg">
@@ -78,25 +112,28 @@ export const AuthContainer = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name field — only on sign up */}
-          {!isLogin && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-400"
-                placeholder="John Doe"
-                required={!isLogin}
-              />
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {!isLogin && (
+              <motion.div
+                key="name-field"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-400"
+                  placeholder="John Doe"
+                  required={!isLogin}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
@@ -138,7 +175,7 @@ export const AuthContainer = () => {
         <p className="mt-8 text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
           {isLogin ? 'New to FreshTrack? ' : 'Joined us before? '}
           <button
-            onClick={() => { setIsLogin(!isLogin); setName(''); }}
+            onClick={() => { setIsLogin(!isLogin); setName(''); setSignupDone(false); }}
             className="text-emerald-700 font-bold hover:underline ml-1"
           >
             {isLogin ? 'Sign Up' : 'Login'}
