@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 import { InventoryList } from './InventoryList';
 import { StatsCards } from './StatsCards';
 import { Button } from '../ui/Button';
-import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed } from 'lucide-react';
+import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed, ChevronDown, ChevronUp } from 'lucide-react';
 import { AddItemModal } from './AddItemModal';
 import { getExpiryStatus } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
@@ -17,6 +17,7 @@ export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Inventory');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipes, setGeneratedRecipes] = useState<any[] | null>(null);
+  const [expandedRecipeIndex, setExpandedRecipeIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -38,9 +39,14 @@ export const Dashboard = () => {
     try {
       const itemNames = items.length > 0 ? items.map(i => i.item_name.trim().toLowerCase()) : ['ingredients'];
       const uniqueItems = Array.from(new Set(itemNames));
+      // Shuffle the array to ensure diverse suggestions
+      const shuffled = [...uniqueItems].sort(() => 0.5 - Math.random());
       
-      const item1 = uniqueItems[0] || 'ingredients';
-      const item2 = uniqueItems.length > 1 ? uniqueItems[1] : item1;
+      const item1 = shuffled[0] || 'ingredients';
+      const item2 = shuffled.length > 1 ? shuffled[1] : item1;
+      
+      // Reset expanded state when generating new recipes
+      setExpandedRecipeIndex(null);
 
       const fetchRecipeForIngredient = async (ingredient: string, fallbackTitle: string) => {
         try {
@@ -256,44 +262,73 @@ export const Dashboard = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {generatedRecipes.map((recipe, index) => (
-                    <motion.div 
-                      key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="text-left space-y-6 bg-emerald-50/30 p-8 rounded-[2.5rem] border border-emerald-100"
-                    >
-                      <div className="space-y-1">
-                        <div className="inline-block px-3 py-1 mb-2 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest">
-                          Option {index + 1}
-                        </div>
-                        <h4 className="font-black text-xl text-emerald-900">{recipe.title}</h4>
-                        <p className="text-emerald-700/60 text-sm font-medium">{recipe.description}</p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Needed</h5>
-                        <div className="flex flex-wrap gap-2">
-                          {recipe.ingredients.map((ing: string, i: number) => (
-                            <span key={i} className="px-3 py-1.5 bg-white rounded-xl text-xs font-bold text-emerald-700 border border-emerald-100">{ing}</span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Instructions</h5>
-                        <div className="space-y-3">
-                          {recipe.steps.map((step: string, i: number) => (
-                            <div key={i} className="flex gap-4">
-                              <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex-shrink-0 flex items-center justify-center text-[10px] font-black">{i + 1}</span>
-                              <p className="text-sm text-emerald-800/80 font-medium leading-relaxed">{step}</p>
+                  {generatedRecipes.map((recipe, index) => {
+                    const isExpanded = expandedRecipeIndex === index;
+                    return (
+                      <motion.div 
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={cn(
+                          "text-left bg-emerald-50/30 rounded-[2.5rem] border border-emerald-100 overflow-hidden transition-all duration-300",
+                          isExpanded ? "shadow-md" : "hover:border-emerald-200"
+                        )}
+                      >
+                        {/* Accordion Header */}
+                        <div 
+                          className="p-8 cursor-pointer flex items-center justify-between"
+                          onClick={() => setExpandedRecipeIndex(isExpanded ? null : index)}
+                        >
+                          <div className="space-y-1">
+                            <div className="inline-block px-3 py-1 mb-2 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest">
+                              Option {index + 1}
                             </div>
-                          ))}
+                            <h4 className="font-black text-xl text-emerald-900">{recipe.title}</h4>
+                            <p className="text-emerald-700/60 text-sm font-medium">{recipe.description}</p>
+                          </div>
+                          <div className="ml-4 w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 text-emerald-500 shadow-sm border border-emerald-50">
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+
+                        {/* Accordion Content */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="px-8 pb-8 space-y-6"
+                            >
+                              <div className="h-px w-full bg-emerald-100/50 mb-6" />
+                              
+                              <div className="space-y-3">
+                                <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Needed</h5>
+                                <div className="flex flex-wrap gap-2">
+                                  {recipe.ingredients.map((ing: string, i: number) => (
+                                    <span key={i} className="px-3 py-1.5 bg-white rounded-xl text-xs font-bold text-emerald-700 border border-emerald-100 shadow-sm">{ing}</span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Instructions</h5>
+                                <div className="space-y-3">
+                                  {recipe.steps.map((step: string, i: number) => (
+                                    <div key={i} className="flex gap-4">
+                                      <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-sm">{i + 1}</span>
+                                      <p className="text-sm text-emerald-800/80 font-medium leading-relaxed">{step}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
 
                   <Button 
                     onClick={() => setGeneratedRecipes(null)}
