@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import { Navbar } from '../components/layout/Navbar';
 import { Dashboard } from '../components/inventory/Dashboard';
-import { AuthContainer } from '../components/auth/AuthContainer';
+import { LandingPage } from '../components/landing/LandingPage';
 import { useNotifications } from '../hooks/useNotifications';
 
 export default function Home() {
@@ -45,7 +45,7 @@ export default function Home() {
           </main>
         </>
       ) : (
-        <AuthContainer />
+        <LandingPage />
       )}
     </div>
   );

@@ -5,10 +5,11 @@ import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus, Leaf } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 
 export const AuthContainer = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,23 +24,32 @@ export const AuthContainer = () => {
         if (error) throw error;
         toast.success('Logged in successfully!');
       } else {
+        if (!name.trim()) {
+          toast.error('Please enter your name.');
+          setLoading(false);
+          return;
+        }
         const redirectUrl = `${window.location.origin}/auth/verify`;
-        const { error } = await supabase.auth.signUp({ 
-          email, 
+        const { error } = await supabase.auth.signUp({
+          email,
           password,
           options: {
-            emailRedirectTo: redirectUrl
-          }
+            emailRedirectTo: redirectUrl,
+            data: {
+              full_name: name.trim(),
+            },
+          },
         });
         if (error) throw error;
-        toast.success('Check your email to verify your account!');
+        toast.success('Account created! Check your email to verify.');
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
-      if (error.message === 'Failed to fetch') {
+      const msg = error?.message || String(error);
+      if (msg.includes('Failed to fetch')) {
         toast.error('Waking up secure server... Please try again in a few seconds.');
       } else {
-        toast.error(error.message || 'An unexpected error occurred');
+        toast.error(msg || 'An unexpected error occurred');
       }
     } finally {
       setLoading(false);
@@ -48,7 +58,7 @@ export const AuthContainer = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-brand-bg">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-emerald-900/5 border border-gray-100"
@@ -64,38 +74,68 @@ export const AuthContainer = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Name field — only on sign up */}
+          {!isLogin && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-400"
+                placeholder="John Doe"
+                required={!isLogin}
+              />
+            </motion.div>
+          )}
+
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">Email Address</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+              Email Address
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium"
+              className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-400"
               placeholder="name@example.com"
               required
             />
           </div>
+
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">Password</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+              Password
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium"
+              className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-400"
               placeholder="••••••••"
               required
             />
           </div>
 
-          <Button type="submit" className="w-full rounded-2xl py-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-200 uppercase tracking-widest text-xs" isLoading={loading}>
+          <Button
+            type="submit"
+            className="w-full rounded-2xl py-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-200 uppercase tracking-widest text-xs"
+            isLoading={loading}
+          >
             {isLogin ? 'Login' : 'Create Account'}
           </Button>
         </form>
 
         <p className="mt-8 text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-          {isLogin ? "New to FreshTrack? " : "Joined us before? "}
-          <button 
-            onClick={() => setIsLogin(!isLogin)}
+          {isLogin ? 'New to FreshTrack? ' : 'Joined us before? '}
+          <button
+            onClick={() => { setIsLogin(!isLogin); setName(''); }}
             className="text-emerald-700 font-bold hover:underline ml-1"
           >
             {isLogin ? 'Sign Up' : 'Login'}
@@ -105,5 +145,3 @@ export const AuthContainer = () => {
     </div>
   );
 };
-
-
