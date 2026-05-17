@@ -3,8 +3,8 @@
  * Updates the full_name for the currently authenticated user.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser, createSession, COOKIE_NAME, MAX_AGE } from '../../../lib/session';
-import { supabaseAdmin } from '../../../lib/supabase-server';
+import { getSessionUser, createSession, COOKIE_NAME, MAX_AGE } from '@/lib/session';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();

@@ -4,8 +4,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { supabaseAdmin } from '../../../lib/supabase-server';
-import { createSession, COOKIE_NAME, MAX_AGE } from '../../../lib/session';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { createSession, COOKIE_NAME, MAX_AGE } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {

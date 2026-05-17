@@ -4,7 +4,7 @@
  * Used by AuthProvider to hydrate client-side state on mount.
  */
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '../../../lib/session';
+import { getSessionUser } from '@/lib/session';
 
 export async function GET() {
   const user = await getSessionUser();

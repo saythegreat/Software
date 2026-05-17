@@ -5,8 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { supabaseAdmin } from '../../../lib/supabase-server';
-import { sendVerificationEmail } from '../../../lib/brevo';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { sendVerificationEmail } from '@/lib/brevo';
 
 export async function POST(req: NextRequest) {
   try {

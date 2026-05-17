@@ -3,8 +3,8 @@
  * Validates the email verification token and marks the user as verified.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabase-server';
-import { createSession, COOKIE_NAME, MAX_AGE } from '../../../../lib/session';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { createSession, COOKIE_NAME, MAX_AGE } from '@/lib/session';
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
