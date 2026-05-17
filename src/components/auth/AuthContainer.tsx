@@ -52,8 +52,9 @@ export const AuthContainer = () => {
 
         if (!res.ok) throw new Error(data.error || 'Signup failed.');
 
-        setSignupDone(true);
-        toast.success('Account created! Check your email to verify.');
+        toast.success('Account created! You can now log in.');
+        setIsLogin(true);  // switch to login tab
+        setPassword('');   // clear password for security
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
