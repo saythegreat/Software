@@ -31,62 +31,54 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
   const scanControls = useRef<any>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    // Stop scanner and release camera on unmount
     return () => {
       try { scanControls.current?.stop(); } catch {}
-      streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
 
   const startScanning = async () => {
     setScanning(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) { setScanning(false); return; }
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (devices.length === 0) {
-        toast.error('No camera found on this device.');
-        setScanning(false);
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      const deviceId = devices[0]?.deviceId;
-      if (deviceId && videoRef.current) {
-        scanControls.current = await codeReader.current.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current,
-          async (result) => {
-            if (result) {
-              scanControls.current?.stop();
-              streamRef.current?.getTracks().forEach(t => t.stop());
-              setScanning(false);
-              await handleBarcodeDetected(result.getText());
-            }
+      // decodeFromConstraints handles getUserMedia + video attachment internally
+      // This avoids all stream conflicts from manual getUserMedia + decodeFromVideoDevice
+      scanControls.current = await codeReader.current.decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' } } },
+        video,
+        async (result, err) => {
+          if (result) {
+            scanControls.current?.stop();
+            setScanning(false);
+            await handleBarcodeDetected(result.getText());
           }
-        );
+          // scan errors fire constantly when no barcode visible — ignore them
+        }
+      );
+    } catch (err: any) {
+      const msg = String(err?.message || err || '');
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('notallowed')) {
+        toast.error('Camera permission denied — please allow camera access in your browser settings.');
+      } else if (msg.toLowerCase().includes('notfound') || msg.toLowerCase().includes('nodevice')) {
+        toast.error('No camera found on this device.');
+      } else {
+        toast.error('Camera failed to start. Use the manual barcode entry below.');
+        console.error('[Scanner]', err);
       }
-    } catch {
-      toast.error('Camera access denied. Please allow camera permission and try again.');
       setScanning(false);
     }
   };
 
   const stopScanning = () => {
     try { scanControls.current?.stop(); } catch {}
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    if (videoRef.current) videoRef.current.srcObject = null;
+    if (videoRef.current) { videoRef.current.srcObject = null; }
     setScanning(false);
   };
+
 
   const handleBarcodeDetected = async (barcode: string) => {
     setFormData(f => ({ ...f, barcode }));
