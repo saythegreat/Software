@@ -16,7 +16,7 @@ export const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Inventory');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedRecipe, setGeneratedRecipe] = useState<any>(null);
+  const [generatedRecipes, setGeneratedRecipes] = useState<any[] | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -36,65 +36,101 @@ export const Dashboard = () => {
   const handleGenerateRecipe = async () => {
     setIsGenerating(true);
     try {
-      const itemPool = items.length > 0 ? items : [{ item_name: 'Available Ingredients' }];
-      const randomItem = itemPool[Math.floor(Math.random() * itemPool.length)];
-      const mainIngredient = randomItem.item_name;
+      const itemNames = items.length > 0 ? items.map(i => i.item_name.trim().toLowerCase()) : ['ingredients'];
+      const uniqueItems = Array.from(new Set(itemNames));
       
-      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${mainIngredient.trim().toLowerCase()}`);
-      const data = await res.json();
+      const item1 = uniqueItems[0] || 'ingredients';
+      const item2 = uniqueItems.length > 1 ? uniqueItems[1] : item1;
 
-      if (!data.meals) {
-        // Fallback for unknown ingredients like "ggg"
-        setGeneratedRecipe({
-          title: "Creative Free-style",
-          description: `We couldn't find a standard recipe specifically for "${mainIngredient}". However, here's a general guide for unique items!`,
-          ingredients: [mainIngredient, ...items.filter(i => i.item_name !== mainIngredient).slice(0, 2).map(i => i.item_name)],
-          steps: [
-            `Decide if ${mainIngredient} is best enjoyed as a quick snack, a side, or the star of a meal.`,
-            "Gather any complementary items from your fridge or pantry.",
-            "Combine them to create a balanced flavor profile.",
-            "Serve beautifully and enjoy your creative pairing!"
-          ]
-        });
-        return;
-      }
+      const fetchRecipeForIngredient = async (ingredient: string, fallbackTitle: string) => {
+        try {
+          const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${ingredient}`);
+          const data = await res.json();
+          if (!data.meals) throw new Error("No meals");
+          
+          const randomMeal = data.meals[Math.floor(Math.random() * data.meals.length)];
+          const mealRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${randomMeal.idMeal}`);
+          const mealData = await mealRes.json();
+          const meal = mealData.meals[0];
 
-      // Pick a random meal from the results
-      const randomMeal = data.meals[Math.floor(Math.random() * data.meals.length)];
-      
-      const mealRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${randomMeal.idMeal}`);
-      const mealData = await mealRes.json();
-      const meal = mealData.meals[0];
+          const ingredients = [];
+          for (let i = 1; i <= 20; i++) {
+            if (meal[`strIngredient${i}`] && meal[`strIngredient${i}`].trim()) {
+              ingredients.push(`${meal[`strIngredient${i}`]} - ${meal[`strMeasure${i}`]}`);
+            }
+          }
 
-      const ingredients = [];
-      for (let i = 1; i <= 20; i++) {
-        if (meal[`strIngredient${i}`] && meal[`strIngredient${i}`].trim()) {
-          ingredients.push(`${meal[`strIngredient${i}`]} - ${meal[`strMeasure${i}`]}`);
+          return {
+            title: meal.strMeal,
+            description: `A delicious ${meal.strArea || ''} dish highlighting your ${ingredient}.`,
+            ingredients: ingredients.slice(0, 6),
+            steps: meal.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 0).slice(0, 5)
+          };
+        } catch {
+          return {
+            title: fallbackTitle,
+            description: `A creative way to use your ${ingredient}.`,
+            ingredients: [ingredient, "Pantry staples (oil, salt, pepper)"],
+            steps: [
+              `Decide if ${ingredient} is best enjoyed as a quick snack, a side, or the star of a meal.`,
+              "Gather any complementary items from your fridge or pantry.",
+              "Combine them to create a balanced flavor profile.",
+              "Serve beautifully and enjoy your creative pairing!"
+            ]
+          };
         }
+      };
+
+      const recipe1 = await fetchRecipeForIngredient(item1, `${item1.charAt(0).toUpperCase() + item1.slice(1)} Delight`);
+      const recipe2 = item1 !== item2 
+        ? await fetchRecipeForIngredient(item2, `${item2.charAt(0).toUpperCase() + item2.slice(1)} Special`)
+        : await fetchRecipeForIngredient(item1, `Another ${item1.charAt(0).toUpperCase() + item1.slice(1)} Idea`);
+
+      // Recipe 3: Combination
+      let comboRecipe;
+      const hasBakingItems = (item1.includes('milk') && item2.includes('egg')) || (item1.includes('egg') && item2.includes('milk'));
+      
+      if (hasBakingItems) {
+        comboRecipe = {
+          title: "Homemade Cake or Pancakes 🥞",
+          description: `Since you have both ${item1} and ${item2}, you have the perfect base for baking!`,
+          ingredients: [item1, item2, "Flour", "Sugar", "Butter"],
+          steps: [
+            "Mix the dry ingredients (flour, sugar) in a bowl.",
+            `Whisk the ${item1} and ${item2} together, then fold into the dry mix.`,
+            "Bake in an oven or cook on a skillet until golden brown.",
+            "Top with syrup, frosting, or fresh fruits and enjoy!"
+          ]
+        };
+      } else {
+        comboRecipe = {
+          title: `${item1.charAt(0).toUpperCase() + item1.slice(1)} & ${item2.charAt(0).toUpperCase() + item2.slice(1)} Fusion 🥘`,
+          description: `Combine your ${item1} and ${item2} for a unique fusion dish!`,
+          ingredients: [item1, item2, "Favorite seasonings", "A base (rice, pasta, or greens)"],
+          steps: [
+            `Prepare both ${item1} and ${item2} by washing and chopping if necessary.`,
+            "Cook the ingredients together in a pan with some olive oil or butter.",
+            "Add your favorite seasonings and let the flavors meld.",
+            "Serve hot over your chosen base!"
+          ]
+        };
       }
 
-      setGeneratedRecipe({
-        title: meal.strMeal,
-        description: `A delicious ${meal.strArea || ''} dish to use your ${mainIngredient}.`,
-        ingredients: ingredients.slice(0, 10), // Limit to 10
-        steps: meal.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 0).slice(0, 6)
-      });
+      setGeneratedRecipes([recipe1, comboRecipe, recipe2]);
 
     } catch (error) {
       console.error(error);
-      const itemPool = items.length > 0 ? items : [{ item_name: 'Available Ingredients' }];
-      const mainIngredient = itemPool[0].item_name;
-      setGeneratedRecipe({
-        title: `${mainIngredient} Special Mix`,
-        description: `A delicious and healthy way to use your ${mainIngredient.toLowerCase()}.`,
-        ingredients: items.slice(0, 3).map(i => i.item_name),
+      setGeneratedRecipes([{
+        title: "Creative Free-style",
+        description: `Here's a general guide for unique items!`,
+        ingredients: ["Your available items"],
         steps: [
-          `Prepare the ${mainIngredient.toLowerCase()} by washing and cutting.`,
-          "Sauté with some garlic and olive oil.",
-          "Season with salt and pepper to taste.",
-          "Serve hot and enjoy!"
+          `Decide if your items are best enjoyed as a quick snack, a side, or the star of a meal.`,
+          "Gather any complementary items from your fridge or pantry.",
+          "Combine them to create a balanced flavor profile.",
+          "Serve beautifully and enjoy your creative pairing!"
         ]
-      });
+      }]);
     } finally {
       setIsGenerating(false);
     }
@@ -200,7 +236,7 @@ export const Dashboard = () => {
 
           {items.length > 0 ? (
             <div className="space-y-6">
-              {!generatedRecipe ? (
+              {!generatedRecipes ? (
                 <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100/50">
                   <p className="text-emerald-800 text-sm leading-relaxed mb-6">
                     You have <strong>{items.length}</strong> items in your inventory. Let's find something amazing to cook with what you have!
@@ -215,48 +251,57 @@ export const Dashboard = () => {
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Analyzing Ingredients...
                       </div>
-                    ) : "Generate Smart Recipe"}
+                    ) : "Generate Smart Recipes"}
                   </Button>
                 </div>
               ) : (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-left space-y-6 bg-emerald-50/30 p-8 rounded-[2.5rem] border border-emerald-100"
-                >
-                  <div className="space-y-1">
-                    <h4 className="font-black text-2xl text-emerald-900">{generatedRecipe.title}</h4>
-                    <p className="text-emerald-700/60 text-sm font-medium">{generatedRecipe.description}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Needed</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {generatedRecipe.ingredients.map((ing: string) => (
-                        <span key={ing} className="px-4 py-2 bg-white rounded-xl text-xs font-bold text-emerald-700 border border-emerald-100">{ing}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Instructions</h5>
-                    <div className="space-y-3">
-                      {generatedRecipe.steps.map((step: string, i: number) => (
-                        <div key={i} className="flex gap-4">
-                          <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex-shrink-0 flex items-center justify-center text-[10px] font-black">{i + 1}</span>
-                          <p className="text-sm text-emerald-800/80 font-medium leading-relaxed">{step}</p>
+                <div className="space-y-6">
+                  {generatedRecipes.map((recipe, index) => (
+                    <motion.div 
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="text-left space-y-6 bg-emerald-50/30 p-8 rounded-[2.5rem] border border-emerald-100"
+                    >
+                      <div className="space-y-1">
+                        <div className="inline-block px-3 py-1 mb-2 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest">
+                          Option {index + 1}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        <h4 className="font-black text-xl text-emerald-900">{recipe.title}</h4>
+                        <p className="text-emerald-700/60 text-sm font-medium">{recipe.description}</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Needed</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {recipe.ingredients.map((ing: string, i: number) => (
+                            <span key={i} className="px-3 py-1.5 bg-white rounded-xl text-xs font-bold text-emerald-700 border border-emerald-100">{ing}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Instructions</h5>
+                        <div className="space-y-3">
+                          {recipe.steps.map((step: string, i: number) => (
+                            <div key={i} className="flex gap-4">
+                              <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex-shrink-0 flex items-center justify-center text-[10px] font-black">{i + 1}</span>
+                              <p className="text-sm text-emerald-800/80 font-medium leading-relaxed">{step}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
 
                   <Button 
-                    onClick={() => setGeneratedRecipe(null)}
+                    onClick={() => setGeneratedRecipes(null)}
                     className="w-full bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 rounded-2xl py-4 text-xs font-bold"
                   >
-                    Try Another Recipe
+                    Try Other Recipes
                   </Button>
-                </motion.div>
+                </div>
               )}
             </div>
           ) : (
