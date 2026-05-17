@@ -84,23 +84,19 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     const reader = new BrowserMultiFormatReader();
     readerRef.current = reader;
 
-    // Poll the video frames for barcodes
+    // Poll the video frames for barcodes using the correct ZXing API
     const decodeLoop = async () => {
       if (!scanningRef.current || !videoRef.current) return;
       try {
-        const result = await reader.decodeOnce(videoRef.current);
+        // decodeOnceFromVideoElement keeps polling until a barcode is found
+        const result = await reader.decodeOnceFromVideoElement(videoRef.current!);
         if (result && scanningRef.current) {
           stopCamera();
           await handleBarcodeDetected(result.getText());
         }
       } catch (err: any) {
         // "NotFoundException" fires when no barcode found — keep looping
-        if (err?.name === 'NotFoundException' || err?.message?.includes('No MultiFormat')) {
-          if (scanningRef.current) {
-            requestAnimationFrame(decodeLoop);
-          }
-        } else if (scanningRef.current) {
-          console.warn('[Scanner] decode error:', err);
+        if (scanningRef.current) {
           requestAnimationFrame(decodeLoop);
         }
       }

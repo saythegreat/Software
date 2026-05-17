@@ -1,15 +1,9 @@
 /**
- * Brevo (formerly Sendinblue) email sender — server-side only.
- * Sends transactional emails via the Brevo API.
+ * Brevo transactional email sender — server-side only.
+ * Uses the Brevo REST API directly via fetch (avoids ESM bundler incompatibilities).
  */
-import * as Brevo from '@getbrevo/brevo';
 
-const apiInstance = new Brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY || ''
-);
-
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@freshtrack.app';
 const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'FreshTrack';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -19,13 +13,9 @@ export async function sendVerificationEmail(
   toName: string,
   token: string
 ): Promise<void> {
-  const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
+  const verifyUrl = `${APP_URL}/api/auth/verify?token=${token}`;
 
-  const email = new Brevo.SendSmtpEmail();
-  email.sender = { name: SENDER_NAME, email: SENDER_EMAIL };
-  email.to = [{ email: toEmail, name: toName }];
-  email.subject = 'Verify your FreshTrack account';
-  email.htmlContent = `
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -38,7 +28,6 @@ export async function sendVerificationEmail(
         <tr>
           <td align="center">
             <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-              <!-- Header -->
               <tr>
                 <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:40px 48px;text-align:center;">
                   <div style="font-size:32px;margin-bottom:8px;">🌿</div>
@@ -46,14 +35,12 @@ export async function sendVerificationEmail(
                   <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;">Smart Food Expiry Tracker</p>
                 </td>
               </tr>
-              <!-- Body -->
               <tr>
                 <td style="padding:48px;">
                   <h2 style="margin:0 0 12px;color:#1f2937;font-size:22px;font-weight:700;">Welcome, ${toName}! 👋</h2>
                   <p style="margin:0 0 28px;color:#6b7280;font-size:15px;line-height:1.6;">
                     Thanks for signing up for FreshTrack. Click the button below to verify your email address and start managing your kitchen smarter.
                   </p>
-                  <!-- CTA Button -->
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center">
@@ -70,7 +57,6 @@ export async function sendVerificationEmail(
                   </p>
                 </td>
               </tr>
-              <!-- Footer -->
               <tr>
                 <td style="padding:24px 48px;border-top:1px solid #f3f4f6;text-align:center;">
                   <p style="margin:0;color:#d1d5db;font-size:12px;">
@@ -86,5 +72,23 @@ export async function sendVerificationEmail(
     </html>
   `;
 
-  await apiInstance.sendTransacEmail(email);
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: toEmail, name: toName }],
+      subject: 'Verify your FreshTrack account',
+      htmlContent,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Brevo API error: ${response.status} — ${err}`);
+  }
 }

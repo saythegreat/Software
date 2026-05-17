@@ -177,6 +177,15 @@ export const Dashboard = () => {
     }
   };
 
+  // Pre-compute derived state before JSX (avoids IIFE in JSX which Turbopack rejects)
+  const activeItems = items.filter(i => !i.consumed && !i.wasted);
+  const catNames = categories.length > 0
+    ? categories.map(c => c.category_name)
+    : Array.from(new Set(activeItems.map(i => i.category || 'General')));
+  const visibleCategories = catNames.filter(catName =>
+    activeItems.some(i => (i.category || 'General') === catName)
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-700 max-w-4xl mx-auto">
       {/* Tab Navigation */}
@@ -236,29 +245,20 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {activeTab === 'Categories' && (() => {
-        // Only work with active items in categories
-        const activeItems = items.filter(i => !i.consumed && !i.wasted);
-        const catNames = categories.length > 0
-          ? categories.map(c => c.category_name)
-          : Array.from(new Set(activeItems.map(i => i.category || 'General')));
-
-        return (
-          <div className="space-y-3">
-            {catNames.length === 0 ? (
-              <div className="p-16 text-center bg-white rounded-[2rem] border border-gray-100/50 card-shadow">
-                <LayoutGrid className="w-16 h-16 text-gray-100 mx-auto mb-4" />
-                <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">No categories yet</p>
-              </div>
-            ) : (
-              catNames.map(catName => {
-                // Only active items in this category
+      {activeTab === 'Categories' && (
+        <div className="space-y-3">
+          {visibleCategories.length === 0 ? (
+            <div className="p-16 text-center bg-white rounded-[2rem] border border-gray-100/50 card-shadow">
+              <LayoutGrid className="w-16 h-16 text-gray-100 mx-auto mb-4" />
+              <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">No categories yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {visibleCategories.map(catName => {
                 const catItems = activeItems.filter(i => (i.category || 'General') === catName);
-                if (catItems.length === 0) return null; // Hide empty categories
                 const isExpanded = selectedCategory === catName;
                 return (
                   <motion.div key={catName} layout className="overflow-hidden">
-                    {/* Category Card — clickable header */}
                     <button
                       onClick={() => setSelectedCategory(isExpanded ? null : catName)}
                       className={cn(
@@ -285,7 +285,6 @@ export const Dashboard = () => {
                       </div>
                     </button>
 
-                    {/* Expanded items list */}
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
@@ -327,11 +326,11 @@ export const Dashboard = () => {
                     </AnimatePresence>
                   </motion.div>
                 );
-              })
-            )}
-          </div>
-        );
-      })()}
+              })}
+            </div>
+          )}
+        </div>
+      )}
       
       {activeTab === 'Recipes' && (
         <div className="bg-white p-8 rounded-[2rem] border border-gray-100 text-center space-y-6">
@@ -341,20 +340,15 @@ export const Dashboard = () => {
             <p className="text-gray-400 text-sm">AI-powered suggestions based on what's expiring.</p>
           </div>
 
-          {(() => {
-            const activeItems = items.filter(i => !i.consumed && !i.wasted);
-            if (activeItems.length === 0) {
-              return (
-                <div className="bg-gray-50/50 p-8 rounded-3xl border border-dashed border-gray-200">
-                  <p className="text-gray-400 text-sm font-medium">
-                    {items.length > 0
-                      ? 'All your items are consumed or wasted — add new items to generate recipes!'
-                      : 'Add items expiring soon to see personalized recipe suggestions!'}
-                  </p>
-                </div>
-              );
-            }
-            return (
+          {activeItems.length === 0 ? (
+            <div className="bg-gray-50/50 p-8 rounded-3xl border border-dashed border-gray-200">
+              <p className="text-gray-400 text-sm font-medium">
+                {items.length > 0
+                  ? 'All your items are consumed or wasted — add new items to generate recipes!'
+                  : 'Add items expiring soon to see personalized recipe suggestions!'}
+              </p>
+            </div>
+          ) : (
               <div className="space-y-6">
                 {!generatedRecipes ? (
                 <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100/50">
@@ -452,8 +446,8 @@ export const Dashboard = () => {
                   </Button>
                 </div>
               )}
-            );
-          })()}
+            </div>
+          )}
         </div>
       )}
 
