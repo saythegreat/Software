@@ -5,8 +5,9 @@ import { useStore } from '../../store/useStore';
 import { InventoryList } from './InventoryList';
 import { StatsCards } from './StatsCards';
 import { Button } from '../ui/Button';
-import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, List, Refrigerator, LayoutGrid, UtensilsCrossed, ChevronDown, ChevronUp, ScanLine } from 'lucide-react';
 import { AddItemModal } from './AddItemModal';
+import { ScannerModal } from './ScannerModal';
 import { getExpiryStatus } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const Dashboard = () => {
   const { items, fetchItems, fetchCategories, categories } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Inventory');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipes, setGeneratedRecipes] = useState<any[] | null>(null);
@@ -181,12 +183,20 @@ export const Dashboard = () => {
 
       <div className="flex items-center justify-between gap-4">
          <h2 className="text-xl font-bold text-gray-800">{activeTab}</h2>
-         <Button 
-           onClick={() => setIsModalOpen(true)}
-           className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
-         >
-           <Plus className="w-4 h-4 mr-2" /> Add item
-         </Button>
+         <div className="flex items-center gap-2">
+           <Button
+             onClick={() => setIsScannerOpen(true)}
+             className="rounded-xl bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-bold text-xs"
+           >
+             <ScanLine className="w-4 h-4 mr-2" /> Scan
+           </Button>
+           <Button 
+             onClick={() => setIsModalOpen(true)}
+             className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
+           >
+             <Plus className="w-4 h-4 mr-2" /> Add item
+           </Button>
+         </div>
       </div>
 
       {activeTab === 'Inventory' && <InventoryList />}
@@ -362,6 +372,7 @@ export const Dashboard = () => {
       )}
 
       {isModalOpen && <AddItemModal onClose={() => setIsModalOpen(false)} />}
+      {isScannerOpen && <ScannerModal onClose={() => setIsScannerOpen(false)} />}
     </div>
   );
 };
