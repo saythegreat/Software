@@ -13,8 +13,6 @@ export async function sendVerificationEmail(
   toName: string,
   token: string
 ): Promise<void> {
-  const verifyUrl = `${APP_URL}/api/auth/verify?token=${token}`;
-
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -39,20 +37,19 @@ export async function sendVerificationEmail(
                 <td style="padding:48px;">
                   <h2 style="margin:0 0 12px;color:#1f2937;font-size:22px;font-weight:700;">Welcome, ${toName}! 👋</h2>
                   <p style="margin:0 0 28px;color:#6b7280;font-size:15px;line-height:1.6;">
-                    Thanks for signing up for FreshTrack. Click the button below to verify your email address and start managing your kitchen smarter.
+                    Thanks for signing up for FreshTrack. Enter the verification code below to verify your email address and start managing your kitchen smarter.
                   </p>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center">
-                        <a href="${verifyUrl}"
-                          style="display:inline-block;background:linear-gradient(135deg,#059669 0%,#10b981 100%);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:50px;letter-spacing:0.03em;box-shadow:0 4px 14px rgba(5,150,105,0.35);">
-                          ✓ Verify My Email
-                        </a>
+                        <div style="display:inline-block;background:#F0FDF4;color:#065F46;font-size:32px;font-weight:800;letter-spacing:6px;padding:20px 40px;border-radius:12px;border:2px dashed #34D399;">
+                          ${token}
+                        </div>
                       </td>
                     </tr>
                   </table>
                   <p style="margin:28px 0 0;color:#9ca3af;font-size:13px;text-align:center;line-height:1.5;">
-                    This link expires in <strong style="color:#374151;">24 hours</strong>.<br/>
+                    This code expires in <strong style="color:#374151;">10 minutes</strong>.<br/>
                     If you didn't sign up, you can safely ignore this email.
                   </p>
                 </td>

@@ -36,15 +36,15 @@ export async function POST(req: NextRequest) {
         );
       }
       // Account exists but unverified — resend the verification email
-      const token = uuidv4();
-      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const token = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+      const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
       await supabaseAdmin
         .from('custom_users')
         .update({ verify_token: token, verify_token_expires_at: expires })
         .eq('email', email.toLowerCase());
       await sendVerificationEmail(email, full_name, token);
       return NextResponse.json({
-        message: 'Verification email resent! Check your inbox.',
+        message: 'Verification code resent! Check your inbox.',
         requiresVerification: true,
       });
     }
@@ -52,9 +52,9 @@ export async function POST(req: NextRequest) {
     // Hash password
     const password_hash = await bcrypt.hash(password, 12);
 
-    // Generate verification token (24h expiry)
-    const verify_token = uuidv4();
-    const verify_token_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    // Generate verification token (10m expiry)
+    const verify_token = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+    const verify_token_expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
 
     // Insert user — NOT verified yet
     const { error: insertError } = await supabaseAdmin

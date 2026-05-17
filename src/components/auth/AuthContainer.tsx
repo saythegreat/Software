@@ -63,8 +63,29 @@ export const AuthContainer = () => {
     }
   };
 
-  // Show "check your email" screen after successful signup
+  // Show "enter verification code" screen after successful signup
   if (signupDone) {
+    const handleVerify = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        const res = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code: password }), // repurpose password state for code
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Verification failed.');
+        
+        toast.success('Email verified successfully! Welcome.');
+        router.push('/dashboard');
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-brand-bg">
         <motion.div
@@ -77,13 +98,33 @@ export const AuthContainer = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-3">Check your inbox</h2>
           <p className="text-gray-400 text-sm leading-relaxed mb-6">
-            We sent a verification link to <strong className="text-gray-600">{email}</strong>. Click the link to activate your account.
+            We sent a verification code to <strong className="text-gray-600">{email}</strong>. Enter the 6-digit code below.
           </p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
-            The link expires in 24 hours
+          <form onSubmit={handleVerify} className="space-y-5">
+            <div>
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-6 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-center text-2xl font-bold tracking-widest text-gray-800 placeholder:text-gray-300"
+                placeholder="000000"
+                maxLength={6}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full rounded-2xl py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-200 uppercase tracking-widest text-xs"
+              isLoading={loading}
+            >
+              Verify Account
+            </Button>
+          </form>
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-300">
+            The code expires in 10 minutes
           </p>
           <button
-            onClick={() => { setSignupDone(false); setIsLogin(true); }}
+            onClick={() => { setSignupDone(false); setIsLogin(true); setPassword(''); }}
             className="mt-6 text-xs text-emerald-700 font-bold hover:underline"
           >
             Back to Login
