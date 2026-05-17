@@ -23,13 +23,24 @@ export const AuthContainer = () => {
         if (error) throw error;
         toast.success('Logged in successfully!');
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const redirectUrl = `${window.location.origin}/auth/verify`;
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: redirectUrl
+          }
+        });
         if (error) throw error;
-        toast.success('Thank you for signing up and use the FreshTrack');
+        toast.success('Check your email to verify your account!');
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
-      toast.error(error.message || 'An unexpected error occurred');
+      if (error.message === 'Failed to fetch') {
+        toast.error('Waking up secure server... Please try again in a few seconds.');
+      } else {
+        toast.error(error.message || 'An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }

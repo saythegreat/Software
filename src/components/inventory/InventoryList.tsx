@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { Button } from '../ui/Button';
@@ -7,12 +8,13 @@ import { Trash2, Snowflake, Search, Filter, Package, Milk, Egg, Utensils, Carrot
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const InventoryList = () => {
+export const InventoryList = ({ fridgeOnly = false }: { fridgeOnly?: boolean }) => {
   const { items, deleteItem, updateItem } = useStore();
-  const [filter, setFilter] = (useStore as any).getState().filter || 'all'; // Placeholder if store doesn't have it
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const getCategoryIcon = (category: string) => {
-    const cat = category.toLowerCase();
+    const cat = (category || '').toLowerCase();
     if (cat.includes('milk') || cat.includes('dairy')) return <Milk className="w-5 h-5 text-blue-500" />;
     if (cat.includes('egg')) return <Egg className="w-5 h-5 text-yellow-600" />;
     if (cat.includes('veg') || cat.includes('carrot')) return <Carrot className="w-5 h-5 text-orange-500" />;
@@ -29,6 +31,20 @@ export const InventoryList = () => {
     }
   };
 
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const status = getExpiryStatus(item.expiry_date);
+    const matchesFilter = 
+      activeFilter === 'All' || 
+      (activeFilter === 'Fresh' && status === 'fresh') ||
+      (activeFilter === 'Expiring' && status === 'expiring') ||
+      (activeFilter === 'Expired' && status === 'expired');
+    
+    const matchesFridge = !fridgeOnly || item.fridge;
+    
+    return matchesSearch && matchesFilter && matchesFridge;
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4">
@@ -37,6 +53,8 @@ export const InventoryList = () => {
           <input 
             type="text" 
             placeholder="Search all items..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-3.5 rounded-[1.25rem] bg-white border border-gray-100 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm"
           />
         </div>
@@ -45,9 +63,10 @@ export const InventoryList = () => {
           {['All', 'Fresh', 'Expiring', 'Expired'].map((f) => (
             <button
               key={f}
+              onClick={() => setActiveFilter(f)}
               className={cn(
                 "px-5 py-2 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border uppercase tracking-wider",
-                f === 'All' ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200" : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50"
+                f === activeFilter ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200" : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50"
               )}
             >
               {f}
@@ -57,14 +76,20 @@ export const InventoryList = () => {
       </div>
 
       <div className="space-y-3">
-        <AnimatePresence>
-          {items.length === 0 ? (
-            <div className="p-16 text-center bg-white rounded-[2rem] border border-gray-100/50 card-shadow">
+        <AnimatePresence mode="popLayout">
+          {filteredItems.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-16 text-center bg-white rounded-[2rem] border border-gray-100/50 card-shadow"
+            >
               <Package className="w-16 h-16 text-gray-100 mx-auto mb-4" />
-              <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Kitchen Empty</p>
-            </div>
+              <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">
+                {searchQuery ? 'No items found' : 'Kitchen Empty'}
+              </p>
+            </motion.div>
           ) : (
-            items.map((item) => {
+            filteredItems.map((item) => {
               const status = getExpiryStatus(item.expiry_date);
               const days = getDaysLeft(item.expiry_date);
 
@@ -119,6 +144,7 @@ export const InventoryList = () => {
         </AnimatePresence>
       </div>
     </div>
+
   );
 };
 
