@@ -47,13 +47,13 @@ export const Dashboard = () => {
         // Fallback for unknown ingredients like "ggg"
         setGeneratedRecipe({
           title: "Creative Free-style",
-          description: `We couldn't find a standard recipe specifically for "${mainIngredient}". However, here's a general guide for unique ingredients!`,
+          description: `We couldn't find a standard recipe specifically for "${mainIngredient}". However, here's a general guide for unique items!`,
           ingredients: [mainIngredient, ...items.filter(i => i.item_name !== mainIngredient).slice(0, 2).map(i => i.item_name)],
           steps: [
-            `Evaluate if ${mainIngredient} is best eaten raw, boiled, or sautéed.`,
-            "Chop your ingredients into bite-sized pieces.",
-            "Combine with a base like rice, pasta, or greens.",
-            "Season well with your favorite spices and enjoy your custom creation!"
+            `Decide if ${mainIngredient} is best enjoyed as a quick snack, a side, or the star of a meal.`,
+            "Gather any complementary items from your fridge or pantry.",
+            "Combine them to create a balanced flavor profile.",
+            "Serve beautifully and enjoy your creative pairing!"
           ]
         });
         return;
