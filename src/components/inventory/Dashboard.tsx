@@ -11,6 +11,8 @@ import { ScannerModal } from './ScannerModal';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateRecipesForInventory, Recipe, PossibleUse, DebugLog } from '../../lib/recipeGenerator';
+import { toast } from 'sonner';
 
 export const Dashboard = () => {
   const { items, fetchItems, fetchCategories, categories } = useStore();
@@ -19,13 +21,35 @@ export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Inventory');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedRecipes, setGeneratedRecipes] = useState<any[] | null>(null);
+  const [generatedRecipes, setGeneratedRecipes] = useState<Recipe[] | null>(null);
+  const [possibleUses, setPossibleUses] = useState<PossibleUse[]>([]);
+  const [unrelatedWarning, setUnrelatedWarning] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   const [expandedRecipeIndex, setExpandedRecipeIndex] = useState<number | null>(null);
+  const [expandedUseIndex, setExpandedUseIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchItems();
     fetchCategories();
   }, [fetchItems, fetchCategories]);
+
+  // Reactive recipe generation whenever active items update!
+  useEffect(() => {
+    const activeItems = items.filter(i => !i.consumed && !i.wasted);
+    if (activeItems.length > 0) {
+      const result = generateRecipesForInventory(activeItems);
+      setGeneratedRecipes(result.recipes);
+      setUnrelatedWarning(result.unrelatedWarning);
+      setPossibleUses(result.possibleUses);
+      setDebugLogs(result.debugLogs || []);
+    } else {
+      setGeneratedRecipes([]);
+      setPossibleUses([]);
+      setUnrelatedWarning(null);
+      setDebugLogs([]);
+    }
+  }, [items]);
 
   const tabs = [
     { name: 'Inventory', icon: List },
@@ -55,123 +79,24 @@ export const Dashboard = () => {
 
   const handleGenerateRecipe = async () => {
     setIsGenerating(true);
+    setExpandedRecipeIndex(null);
+    setExpandedUseIndex(null);
+    
+    // Short realistic scanning/analyzing delay
+    await new Promise(r => setTimeout(r, 800));
+
     try {
-      // Only use active items (not consumed or wasted)
       const activeItems = items.filter(i => !i.consumed && !i.wasted);
-      const itemNames = activeItems.length > 0 ? activeItems.map(i => i.item_name.trim().toLowerCase()) : ['ingredients'];
-      const uniqueItems = Array.from(new Set(itemNames));
-      // Shuffle the array to ensure diverse suggestions
-      const shuffled = [...uniqueItems].sort(() => 0.5 - Math.random());
+      const result = generateRecipesForInventory(activeItems);
       
-      const item1 = shuffled[0] || 'ingredients';
-      const item2 = shuffled.length > 1 ? shuffled[1] : item1;
-      
-      // Reset expanded state when generating new recipes
-      setExpandedRecipeIndex(null);
-
-      const fetchRecipeForIngredient = async (ingredient: string, fallbackTitle: string) => {
-        try {
-          const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${ingredient}`);
-          const data = await res.json();
-          if (!data.meals) throw new Error("No meals");
-          
-          const randomMeal = data.meals[Math.floor(Math.random() * data.meals.length)];
-          const mealRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${randomMeal.idMeal}`);
-          const mealData = await mealRes.json();
-          const meal = mealData.meals[0];
-
-          const ingredients = [];
-          for (let i = 1; i <= 20; i++) {
-            if (meal[`strIngredient${i}`] && meal[`strIngredient${i}`].trim()) {
-              ingredients.push(`${meal[`strIngredient${i}`]} - ${meal[`strMeasure${i}`]}`);
-            }
-          }
-
-          return {
-            title: meal.strMeal,
-            description: `A delicious ${meal.strArea || ''} dish highlighting your ${ingredient}.`,
-            ingredients: ingredients.slice(0, 6),
-            steps: meal.strInstructions.split(/\r?\n/).filter((s: string) => s.trim().length > 0).slice(0, 5)
-          };
-        } catch {
-          return {
-            title: fallbackTitle,
-            description: `A creative way to use your ${ingredient}.`,
-            ingredients: [ingredient, "Pantry staples (oil, salt, pepper)"],
-            steps: [
-              `Decide if ${ingredient} is best enjoyed as a quick snack, a side, or the star of a meal.`,
-              "Gather any complementary items from your fridge or pantry.",
-              "Combine them to create a balanced flavor profile.",
-              "Serve beautifully and enjoy your creative pairing!"
-            ]
-          };
-        }
-      };
-
-      const recipe1 = await fetchRecipeForIngredient(item1, `${item1.charAt(0).toUpperCase() + item1.slice(1)} Delight`);
-      const recipe2 = item1 !== item2 
-        ? await fetchRecipeForIngredient(item2, `${item2.charAt(0).toUpperCase() + item2.slice(1)} Special`)
-        : await fetchRecipeForIngredient(item1, `Another ${item1.charAt(0).toUpperCase() + item1.slice(1)} Idea`);
-
-      // Recipe 3: Combination
-      let comboRecipe;
-      const hasBakingItems = (item1.includes('milk') && item2.includes('egg')) || (item1.includes('egg') && item2.includes('milk'));
-      const fruitKeywords = ['apple', 'banana', 'orange', 'grape', 'berry', 'melon', 'mango', 'peach', 'pear', 'fruit'];
-      const hasFruit = fruitKeywords.some(f => item1.includes(f) || item2.includes(f));
-      
-      if (hasBakingItems) {
-        comboRecipe = {
-          title: "Homemade Cake or Pancakes 🥞",
-          description: `Since you have both ${item1} and ${item2}, you have the perfect base for baking!`,
-          ingredients: [item1, item2, "Flour", "Sugar", "Butter"],
-          steps: [
-            "Mix the dry ingredients (flour, sugar) in a bowl.",
-            `Whisk the ${item1} and ${item2} together, then fold into the dry mix.`,
-            "Bake in an oven or cook on a skillet until golden brown.",
-            "Top with syrup, frosting, or fresh fruits and enjoy!"
-          ]
-        };
-      } else if (hasFruit) {
-        comboRecipe = {
-          title: "Healthy Snack Pairing 🍎",
-          description: `A balanced pairing using your ${item1} and ${item2}.`,
-          ingredients: [item1, item2],
-          steps: [
-            "Wash any fresh fruits thoroughly and eat them raw for maximum nutrition.",
-            `If ${item1 === 'apple' ? item2 : item1} requires cooking (like an egg or meat), prepare it simply (e.g., boiled or toasted).`,
-            "Serve them side-by-side on a plate.",
-            "Enjoy this simple, wholesome snack pairing without overcomplicating things!"
-          ]
-        };
-      } else {
-        comboRecipe = {
-          title: `${item1.charAt(0).toUpperCase() + item1.slice(1)} & ${item2.charAt(0).toUpperCase() + item2.slice(1)} Fusion 🥘`,
-          description: `Combine your ${item1} and ${item2} for a unique fusion dish!`,
-          ingredients: [item1, item2, "Favorite seasonings", "A base (rice, pasta, or greens)"],
-          steps: [
-            `Prepare both ${item1} and ${item2} by washing and chopping if necessary.`,
-            "Cook the ingredients together in a pan with some olive oil or butter.",
-            "Add your favorite seasonings and let the flavors meld.",
-            "Serve hot over your chosen base!"
-          ]
-        };
-      }
-
-      setGeneratedRecipes([recipe1, comboRecipe, recipe2]);
-
+      setGeneratedRecipes(result.recipes);
+      setUnrelatedWarning(result.unrelatedWarning);
+      setPossibleUses(result.possibleUses);
+      setDebugLogs(result.debugLogs || []);
+      toast.success('Recipes refreshed instantly!');
     } catch (error) {
       console.error(error);
-      setGeneratedRecipes([{
-        title: "Creative Free-style",
-        description: `Here's a general guide for unique items!`,
-        ingredients: ["Your available items"],
-        steps: [
-          `Decide if your items are best enjoyed as a quick snack, a side, or the star of a meal.`,
-          "Gather any complementary items from your fridge or pantry.",
-          "Combine them to create a balanced flavor profile.",
-          "Serve beautifully and enjoy your creative pairing!"
-        ]
-      }]);
+      toast.error('Failed to analyze inventory ingredients.');
     } finally {
       setIsGenerating(false);
     }
@@ -349,27 +274,19 @@ export const Dashboard = () => {
               </p>
             </div>
           ) : (
-              <div className="space-y-6">
-                {!generatedRecipes ? (
-                <div className="bg-emerald-50 p-8 rounded-3xl border border-emerald-100/50">
-                  <p className="text-emerald-800 text-sm leading-relaxed mb-6">
-                    You have <strong>{activeItems.length}</strong> active items in your inventory. Let's find something amazing to cook with what you have!
-                  </p>
-                  <Button 
-                    onClick={handleGenerateRecipe}
-                    disabled={isGenerating}
-                    className="bg-emerald-600 w-full rounded-2xl py-6 text-sm font-bold shadow-lg shadow-emerald-200"
-                  >
-                    {isGenerating ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Analyzing Ingredients...
-                      </div>
-                    ) : "Generate Smart Recipes"}
-                  </Button>
+            <div className="space-y-6">
+              {/* Unrelated Match warning */}
+              {unrelatedWarning && (
+                <div className="p-4 bg-orange-50/70 border border-orange-100 rounded-2xl text-left text-xs text-orange-800 space-y-1 mb-6">
+                  <span className="font-extrabold flex items-center gap-1.5 text-orange-950">⚠️ COMPATIBILITY NOTE</span>
+                  <p className="font-semibold text-orange-800">{unrelatedWarning}</p>
                 </div>
-              ) : (
+              )}
+
+              {/* Standard Matches */}
+              {generatedRecipes && generatedRecipes.length > 0 ? (
                 <div className="space-y-6">
+                  <div className="text-left font-bold text-xs uppercase tracking-widest text-emerald-800/40">Compatible Recipes Found</div>
                   {generatedRecipes.map((recipe, index) => {
                     const isExpanded = expandedRecipeIndex === index;
                     return (
@@ -380,7 +297,7 @@ export const Dashboard = () => {
                         transition={{ delay: index * 0.1 }}
                         className={cn(
                           "text-left bg-emerald-50/30 rounded-[2.5rem] border border-emerald-100 overflow-hidden transition-all duration-300",
-                          isExpanded ? "shadow-md" : "hover:border-emerald-200"
+                          isExpanded ? "shadow-md shadow-emerald-500/5 border-emerald-200" : "hover:border-emerald-200"
                         )}
                       >
                         {/* Accordion Header */}
@@ -389,8 +306,13 @@ export const Dashboard = () => {
                           onClick={() => setExpandedRecipeIndex(isExpanded ? null : index)}
                         >
                           <div className="space-y-1">
-                            <div className="inline-block px-3 py-1 mb-2 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest">
-                              Option {index + 1}
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <div className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest">
+                                {recipe.cuisine}
+                              </div>
+                              <div className="inline-block px-3 py-1 rounded-full bg-white text-emerald-600 border border-emerald-100 text-[10px] font-bold uppercase tracking-widest">
+                                ⏱️ {recipe.cookingTime}
+                              </div>
                             </div>
                             <h4 className="font-black text-xl text-emerald-900">{recipe.title}</h4>
                             <p className="text-emerald-700/60 text-sm font-medium">{recipe.description}</p>
@@ -412,13 +334,24 @@ export const Dashboard = () => {
                               <div className="h-px w-full bg-emerald-100/50 mb-6" />
                               
                               <div className="space-y-3">
-                                <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Needed</h5>
+                                <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Ingredients Used</h5>
                                 <div className="flex flex-wrap gap-2">
                                   {recipe.ingredients.map((ing: string, i: number) => (
                                     <span key={i} className="px-3 py-1.5 bg-white rounded-xl text-xs font-bold text-emerald-700 border border-emerald-100 shadow-sm">{ing}</span>
                                   ))}
                                 </div>
                               </div>
+
+                              {recipe.missing.length > 0 && (
+                                <div className="space-y-3">
+                                  <h5 className="font-bold text-xs uppercase tracking-widest text-orange-800/50">Optional Pantry Staples Needed</h5>
+                                  <div className="flex flex-wrap gap-2">
+                                    {recipe.missing.map((ing: string, i: number) => (
+                                      <span key={i} className="px-3 py-1.5 bg-orange-50/50 rounded-xl text-xs font-bold text-orange-700 border border-orange-100 shadow-sm">{ing}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="space-y-4">
                                 <h5 className="font-bold text-xs uppercase tracking-widest text-emerald-800/50">Instructions</h5>
@@ -437,13 +370,121 @@ export const Dashboard = () => {
                       </motion.div>
                     );
                   })}
+                </div>
+              ) : (
+                <div className="bg-gray-50/50 p-8 rounded-3xl border border-dashed border-gray-200">
+                  <p className="text-gray-400 text-sm font-medium">
+                    No fully matching recipes. Try adding more ingredients to unlock dishes!
+                  </p>
+                </div>
+              )}
 
-                  <Button 
-                    onClick={() => setGeneratedRecipes(null)}
-                    className="w-full bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 rounded-2xl py-4 text-xs font-bold"
+              {/* Single Ingredients / Practical Possible Uses */}
+              {possibleUses.length > 0 && (
+                <div className="space-y-6 pt-6 text-left">
+                  <div className="h-px w-full bg-gray-100 mb-6" />
+                  <div className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3">Practical Item Suggestions</div>
+                  <div className="space-y-4">
+                    {possibleUses.map((use, index) => {
+                      const isUseExpanded = expandedUseIndex === index;
+                      return (
+                        <div key={index} className="bg-gray-50/50 rounded-3xl border border-gray-100 overflow-hidden">
+                          <div 
+                            className="p-6 cursor-pointer flex justify-between items-center hover:bg-gray-50 transition-colors"
+                            onClick={() => setExpandedUseIndex(isUseExpanded ? null : index)}
+                          >
+                            <div>
+                              <h4 className="font-extrabold text-base text-gray-800">{use.itemName} Ideas</h4>
+                              <p className="text-xs text-gray-400 font-medium">Simple uses & preparations for your {use.itemName}</p>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 flex-shrink-0">
+                              {isUseExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </div>
+                          </div>
+
+                          <AnimatePresence>
+                            {isUseExpanded && (
+                              <div className="px-6 pb-6 space-y-4">
+                                <div className="h-px bg-gray-200/50 mb-2" />
+                                {use.suggestions.map((suggestion, sIdx) => (
+                                  <div key={sIdx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                                    <div className="flex justify-between items-start">
+                                      <h5 className="font-bold text-sm text-emerald-800">{suggestion.title}</h5>
+                                      <span className="text-[9px] bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Use Idea</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 font-medium leading-relaxed">{suggestion.description}</p>
+                                    
+                                    <div className="space-y-2 pt-2 border-t border-gray-50">
+                                      {suggestion.steps.map((step, stIdx) => (
+                                        <div key={stIdx} className="flex gap-2 text-xs">
+                                          <span className="text-emerald-500 font-bold">•</span>
+                                          <p className="text-gray-600 font-medium leading-relaxed">{step}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Debug Panel Section */}
+              {debugLogs.length > 0 && (
+                <div className="mt-8 border-t border-gray-100 pt-6 text-left">
+                  <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    className="text-[10px] font-bold text-gray-400 hover:text-emerald-600 hover:bg-emerald-50/50 px-3 py-2 rounded-xl transition-all uppercase tracking-wider border border-gray-100"
                   >
-                    Try Other Recipes
-                  </Button>
+                    {showDebug ? 'Hide Engine Debug Logs ⚙️' : 'Show Engine Debug Logs ⚙️'}
+                  </button>
+                  
+                  <AnimatePresence>
+                    {showDebug && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-4 bg-gray-900 text-gray-300 p-6 rounded-3xl font-mono text-[11px] space-y-4 border border-gray-800 overflow-hidden leading-relaxed"
+                      >
+                        <div className="text-emerald-400 font-bold border-b border-gray-800 pb-2 flex justify-between text-xs">
+                          <span>⚙️ RECIPE INTELLIGENCE ENGINE</span>
+                          <span className="text-[9px] text-gray-500 uppercase tracking-widest font-black">Live Debugger</span>
+                        </div>
+                        {debugLogs.map((log, lIdx) => (
+                          <div key={lIdx} className="space-y-1.5 border-b border-gray-800/40 pb-3 last:border-0 last:pb-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-white font-extrabold">🔍 {log.ingredient}</span>
+                              <span className={cn(
+                                "px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-wider",
+                                log.recognized ? "bg-emerald-950/80 text-emerald-400 border-emerald-900" : "bg-red-950/80 text-red-400 border-red-900"
+                              )}>
+                                {log.recognized ? `${log.category}` : 'UNRECOGNIZED'}
+                              </span>
+                            </div>
+                            <div className="pl-4 text-gray-400 text-[10px] space-y-1.5">
+                              <div>Matched Recipes: <span className="text-emerald-400 font-black">{log.matchedRecipesCount}</span></div>
+                              {log.rejectedRecipes && log.rejectedRecipes.length > 0 && (
+                                <div className="space-y-1 pt-1">
+                                  <span className="text-orange-400 font-bold">Rejected Candidates:</span>
+                                  {log.rejectedRecipes.map((rej: any, rIdx: number) => (
+                                    <div key={rIdx} className="pl-2 text-gray-500">
+                                      • <strong className="text-gray-400">{rej.title}</strong>: {rej.reason} (Score: {(rej.score * 100).toFixed(0)}%)
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
             </div>

@@ -23,12 +23,14 @@ export const AuthContainer = () => {
     e.preventDefault();
     setLoading(true);
 
+    const trimmedEmail = email.trim();
+
     try {
       if (isLogin) {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: trimmedEmail, password }),
         });
         const data = await res.json();
 
@@ -47,7 +49,7 @@ export const AuthContainer = () => {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, full_name: name.trim() }),
+          body: JSON.stringify({ email: trimmedEmail, password, full_name: name.trim() }),
         });
         const data = await res.json();
 
@@ -74,7 +76,7 @@ export const AuthContainer = () => {
         const res = await fetch('/api/auth/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, code: verificationCode }),
+          body: JSON.stringify({ email: email.trim(), code: verificationCode }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Verification failed.');

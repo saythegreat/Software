@@ -4,9 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
-import { X, Camera, Upload, CheckCircle, FlipHorizontal } from 'lucide-react';
+import { X, Camera, FlipHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
 
 interface ScannerModalProps {
   onClose: () => void;
@@ -14,18 +15,18 @@ interface ScannerModalProps {
 
 export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   const { addItem } = useStore();
-  const [step, setStep] = useState<'barcode' | 'ocr' | 'confirm'>('barcode');
+  const [step, setStep] = useState<'barcode' | 'confirm'>('barcode');
   const [scanning, setScanning] = useState(false);
-  const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  
   const [formData, setFormData] = useState({
     item_name: '',
     brand: '',
     category: 'Other',
     barcode: '',
-    expiry_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    expiry_date: '', // Compulsory & empty initially
     quantity: '1',
     fridge: false,
   });
@@ -33,9 +34,9 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const scanningRef = useRef(false); // avoid stale closures in async callbacks
+  const scanningRef = useRef(false);
 
-  // Full cleanup: stop all camera tracks and reset reader
+  // Stop camera tracks and clean up resources
   const stopCamera = useCallback(() => {
     scanningRef.current = false;
     if (streamRef.current) {
@@ -50,59 +51,50 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     setCameraError('');
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopCamera();
     };
   }, [stopCamera]);
 
-  // Attach stream to video element and start ZXing reader
   const startReader = useCallback(async (stream: MediaStream) => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Manually attach stream — this is key for mobile
     video.srcObject = stream;
-    video.setAttribute('playsinline', 'true');  // critical for iOS Safari
+    video.setAttribute('playsinline', 'true');
     video.setAttribute('muted', 'true');
     video.muted = true;
 
-    // Wait for video to be ready and playing
     await new Promise<void>((resolve, reject) => {
       video.onloadedmetadata = () => {
         video.play().then(resolve).catch(reject);
       };
       video.onerror = reject;
-      // Fallback timeout in case onloadedmetadata doesn't fire
       setTimeout(resolve, 2000);
     });
 
-    if (!scanningRef.current) return; // component unmounted
+    if (!scanningRef.current) return;
 
-    // Use ZXing to decode from the now-playing video element
     const reader = new BrowserMultiFormatReader();
     readerRef.current = reader;
 
-    // Poll the video frames for barcodes using the correct ZXing API
-    const decodeLoop = async () => {
-      if (!scanningRef.current || !videoRef.current) return;
-      try {
-        // decodeOnceFromVideoElement keeps polling until a barcode is found
-        const result = await reader.decodeOnceFromVideoElement(videoRef.current!);
-        if (result && scanningRef.current) {
-          stopCamera();
-          await handleBarcodeDetected(result.getText());
+    try {
+      await reader.decodeFromVideoElement(video, (result, error, controls) => {
+        if (!scanningRef.current) {
+          controls.stop();
+          return;
         }
-      } catch (err: any) {
-        // "NotFoundException" fires when no barcode found — keep looping
-        if (scanningRef.current) {
-          requestAnimationFrame(decodeLoop);
-        }
-      }
-    };
 
-    decodeLoop();
+        if (result) {
+          controls.stop();
+          stopCamera();
+          handleBarcodeDetected(result.getText());
+        }
+      });
+    } catch (err) {
+      console.error('[Scanner] decodeFromVideoElement error:', err);
+    }
   }, [stopCamera]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startScanning = async () => {
@@ -110,7 +102,6 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     setScanning(true);
     scanningRef.current = true;
 
-    // Short delay to let React render the <video> element before we attach the stream
     await new Promise(r => setTimeout(r, 150));
 
     if (!videoRef.current) {
@@ -121,12 +112,11 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     }
 
     try {
-      // Request camera with mobile-friendly constraints
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       };
@@ -135,7 +125,6 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
       streamRef.current = stream;
 
       if (!scanningRef.current) {
-        // User closed modal before camera started
         stream.getTracks().forEach(t => t.stop());
         return;
       }
@@ -147,15 +136,14 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
       const msg = String(err?.message || err?.name || err || '').toLowerCase();
 
       if (msg.includes('permission') || msg.includes('notallowed') || msg.includes('denied')) {
-        const errorMsg = 'Camera permission denied. Please allow camera access in your browser settings and try again.';
+        const errorMsg = 'Camera permission denied. Please allow camera access in settings.';
         setCameraError(errorMsg);
         toast.error(errorMsg);
-      } else if (msg.includes('notfound') || msg.includes('nodevice') || msg.includes('devicenotfound')) {
+      } else if (msg.includes('notfound') || msg.includes('nodevice')) {
         const errorMsg = 'No camera found on this device.';
         setCameraError(errorMsg);
         toast.error(errorMsg);
-      } else if (msg.includes('overconstrained') || msg.includes('constraint')) {
-        // Retry with simpler constraints (some Android devices)
+      } else {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           streamRef.current = stream;
@@ -163,16 +151,11 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
           setScanning(true);
           await startReader(stream);
         } catch {
-          const errorMsg = 'Camera failed to start. Try the manual entry below.';
+          const errorMsg = 'Camera failed to start. Enter details manually.';
           setCameraError(errorMsg);
           toast.error(errorMsg);
           setScanning(false);
         }
-      } else {
-        const errorMsg = 'Camera failed to start. Try the manual barcode entry below.';
-        setCameraError(errorMsg);
-        console.error('[Scanner]', err);
-        toast.error(errorMsg);
       }
     }
   };
@@ -181,9 +164,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
     const newFacing = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(newFacing);
     stopCamera();
-    // Small delay then restart with new facing mode
     await new Promise(r => setTimeout(r, 200));
-    // startScanning uses facingMode state — update it first then call
     setScanning(true);
     scanningRef.current = true;
     await new Promise(r => setTimeout(r, 150));
@@ -209,60 +190,50 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
       const data = await res.json();
       if (data.status === 1) {
         const p = data.product;
+        const apiCat = (p.categories?.split(',')[0]?.trim() || '').toLowerCase();
+        let matchedCategory = 'Other';
+        
+        if (apiCat.includes('dairy') || apiCat.includes('milk') || apiCat.includes('cheese') || apiCat.includes('yogurt')) {
+          matchedCategory = 'Dairy';
+        } else if (apiCat.includes('meat') || apiCat.includes('chicken') || apiCat.includes('beef') || apiCat.includes('fish')) {
+          matchedCategory = 'Meat';
+        } else if (apiCat.includes('vegetable') || apiCat.includes('greens') || apiCat.includes('salad')) {
+          matchedCategory = 'Vegetables';
+        } else if (apiCat.includes('fruit')) {
+          matchedCategory = 'Fruits';
+        } else if (apiCat.includes('beverage') || apiCat.includes('drink') || apiCat.includes('juice') || apiCat.includes('soda')) {
+          matchedCategory = 'Beverages';
+        } else if (apiCat.includes('snack') || apiCat.includes('chip') || apiCat.includes('cookie') || apiCat.includes('candy') || apiCat.includes('chocolate')) {
+          matchedCategory = 'Snacks';
+        } else if (apiCat.includes('cooked') || apiCat.includes('meal') || apiCat.includes('ready')) {
+          matchedCategory = 'Cooked';
+        }
+
         setFormData(f => ({
           ...f,
           item_name: p.product_name || f.item_name,
           brand: p.brands || '',
-          category: p.categories?.split(',')[0]?.trim() || 'Other',
+          category: matchedCategory,
+          expiry_date: '' // Keep expiry date empty so user has to enter it
         }));
         toast.success('Product found! Check the details.', { id: 'lookup' });
-        setStep('ocr');
+        setStep('confirm');
       } else {
-        toast.error('Product not in database — fill in details manually.', { id: 'lookup' });
-        setStep('ocr');
+        toast.error('Product not in database — enter details manually.', { id: 'lookup' });
+        setStep('confirm');
       }
     } catch {
-      toast.error('Lookup failed. Please fill in manually.', { id: 'lookup' });
-      setStep('ocr');
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setOcrLoading(true);
-    toast.loading('Reading expiry date from image...', { id: 'ocr' });
-    try {
-      const Tesseract = (await import('tesseract.js')).default;
-      const result = await Tesseract.recognize(file, 'eng');
-      const text = result.data.text;
-      const dateRegex = /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})\b/g;
-      const dates = text.match(dateRegex);
-      if (dates && dates.length > 0) {
-        try {
-          const parsed = new Date(dates[0].replace(/[\/\.]/g, '-'));
-          if (!isNaN(parsed.getTime())) {
-            setFormData(f => ({ ...f, expiry_date: parsed.toISOString().split('T')[0] }));
-            toast.success(`Date detected: ${dates[0]}`, { id: 'ocr' });
-          } else {
-            toast.dismiss('ocr');
-          }
-        } catch {
-          toast.dismiss('ocr');
-        }
-      } else {
-        toast.dismiss('ocr'); // quiet fallback
-      }
-    } catch {
-      toast.dismiss('ocr'); // quiet fallback
-    } finally {
-      setOcrLoading(false);
+      toast.error('Lookup failed. Enter details manually.', { id: 'lookup' });
       setStep('confirm');
     }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.expiry_date) {
+      toast.error('Please select an expiry date.');
+      return;
+    }
     setSaving(true);
     try {
       await addItem({
@@ -287,9 +258,8 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
   };
 
   const steps = [
-    { key: 'barcode', label: '1. Scan' },
-    { key: 'ocr', label: '2. Expiry' },
-    { key: 'confirm', label: '3. Confirm' },
+    { key: 'barcode', label: '1. Scan Barcode' },
+    { key: 'confirm', label: '2. Save & Confirm' },
   ];
 
   return (
@@ -297,13 +267,16 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100"
+        className={cn(
+          "bg-white w-full rounded-3xl shadow-2xl overflow-hidden border border-gray-100 transition-all duration-300",
+          (step === 'barcode' && scanning) ? "max-w-2xl" : "max-w-lg"
+        )}
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-50 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Smart Scanner</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Scan barcode → detect expiry → save</p>
+            <p className="text-xs text-gray-400 mt-0.5">Scan product barcode to save instantly</p>
           </div>
           <button
             onClick={() => { stopCamera(); onClose(); }}
@@ -334,10 +307,15 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
           {/* Step 1: Barcode */}
           {step === 'barcode' && (
             <div className="space-y-6">
-              {/* Camera area — always rendered so videoRef is available */}
+              {/* Camera area */}
               <div className={scanning ? 'block' : 'hidden'}>
-                <div className="relative rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: '4/3' }}>
-                  {/* video MUST always be in the DOM when scanning=true */}
+                <div className="relative rounded-2xl overflow-hidden bg-black border border-gray-100 shadow-inner" style={{ aspectRatio: '16/9' }}>
+                  <style>{`
+                    @keyframes scan-laser {
+                      0%, 100% { top: 8%; }
+                      50% { top: 92%; }
+                    }
+                  `}</style>
                   <video
                     ref={videoRef}
                     autoPlay
@@ -345,14 +323,25 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                     playsInline
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
-                  {/* Scanning overlay */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-56 h-36 border-2 border-emerald-400 rounded-xl opacity-80 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                    <div className="relative w-[75%] h-[60%] max-w-[420px] max-h-[260px] border-2 border-emerald-400 rounded-2xl opacity-90 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+                      <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-500 rounded-tl-lg" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-500 rounded-tr-lg" />
+                      <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-500 rounded-bl-lg" />
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-500 rounded-br-lg" />
+                      
+                      <div 
+                        className="absolute left-0 right-0 h-[2px] bg-emerald-400 shadow-[0_0_8px_#34d399]" 
+                        style={{
+                          animation: 'scan-laser 2.5s ease-in-out infinite',
+                          top: '8%'
+                        }} 
+                      />
+                    </div>
                   </div>
-                  <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs font-medium drop-shadow">
-                    Center barcode in the frame
+                  <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs font-semibold drop-shadow tracking-wider uppercase">
+                    Center barcode in the target frame
                   </p>
-                  {/* Controls */}
                   <div className="absolute top-3 right-3 flex gap-2">
                     <button
                       onClick={switchCamera}
@@ -379,7 +368,7 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                 >
                   <Camera className="w-12 h-12" />
                   <span className="font-bold text-sm">Open Camera to Scan Barcode</span>
-                  <span className="text-xs text-emerald-500 font-medium">Uses rear camera</span>
+                  <span className="text-xs text-emerald-500 font-medium">Uses device camera</span>
                 </button>
               )}
 
@@ -415,63 +404,15 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
               </div>
 
               <button
-                onClick={() => setStep('ocr')}
-                className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline"
-              >
-                Skip to expiry date step →
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: OCR */}
-          {step === 'ocr' && (
-            <div className="space-y-6">
-              {formData.item_name && (
-                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-bold text-emerald-800">{formData.item_name}</p>
-                    {formData.brand && <p className="text-xs text-emerald-600">{formData.brand}</p>}
-                  </div>
-                </div>
-              )}
-
-              <label className="block w-full cursor-pointer">
-                <div className="flex flex-col items-center gap-4 p-10 rounded-2xl border-2 border-dashed border-gray-200 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-700 relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleImageUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  {ocrLoading ? (
-                    <>
-                      <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-medium text-emerald-600">Reading expiry date...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-10 h-10" />
-                      <div className="text-center">
-                        <p className="font-bold text-sm">Upload Expiry Label Photo</p>
-                        <p className="text-xs text-gray-400 mt-1">We'll auto-detect the date using OCR</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </label>
-
-              <button
                 onClick={() => setStep('confirm')}
                 className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline"
               >
-                Skip — I'll enter the date manually →
+                Skip barcode scan — enter details manually →
               </button>
             </div>
           )}
 
-          {/* Step 3: Confirm / Manual */}
+          {/* Step 2: Confirm / Manual */}
           {step === 'confirm' && (
             <form onSubmit={handleSave} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -490,11 +431,13 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                   <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5">Category</label>
                   <select
                     value={formData.category}
-                    onChange={e => setFormData(f => ({ ...f, category: e.target.value }))}
+                    onChange={e => {
+                      setFormData(f => ({ ...f, category: e.target.value }));
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm"
                   >
-                    {['Dairy','Meat','Vegetables','Fruits','Beverages','Snacks','Frozen Food','Bakery','Other'].map(c => (
-                      <option key={c}>{c}</option>
+                    {['Dairy','Meat','Vegetables','Fruits','Beverages','Snacks','Cooked','Other'].map(c => (
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>
@@ -514,7 +457,9 @@ export const ScannerModal = ({ onClose }: ScannerModalProps) => {
                     type="date"
                     required
                     value={formData.expiry_date}
-                    onChange={e => setFormData(f => ({ ...f, expiry_date: e.target.value }))}
+                    onChange={e => {
+                      setFormData(f => ({ ...f, expiry_date: e.target.value }));
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm [color-scheme:light]"
                   />
                 </div>

@@ -31,9 +31,15 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchItems: async () => {
     set({ loading: true });
+    const { user } = get();
+    if (!user) {
+      set({ items: [], loading: false });
+      return;
+    }
     const { data, error } = await supabase
       .from('inventory_items')
       .select('*')
+      .eq('user_id', user.id)
       .order('expiry_date', { ascending: true });
     
     if (error) console.error('Error fetching items:', error);

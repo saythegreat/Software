@@ -18,12 +18,16 @@ export const AddItemModal = ({ onClose }: AddItemModalProps) => {
     item_name: '',
     category: 'Dairy',
     quantity: '',
-    expiry_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    expiry_date: '', // Compulsory & empty initially
     fridge: false
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.expiry_date) {
+      toast.error('Please select an expiry date.');
+      return;
+    }
     setLoading(true);
     try {
       await addItem(formData);
@@ -71,7 +75,9 @@ export const AddItemModal = ({ onClose }: AddItemModalProps) => {
               <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Category</label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, category: e.target.value });
+                }}
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#2a2a28] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-green"
               >
                 <option value="Dairy">Dairy</option>
@@ -97,12 +103,14 @@ export const AddItemModal = ({ onClose }: AddItemModalProps) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Expiry Date</label>
+            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Expiry Date *</label>
             <input
               type="date"
               required
               value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, expiry_date: e.target.value });
+              }}
               className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#2a2a28] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-green [color-scheme:light] dark:[color-scheme:dark]"
             />
           </div>

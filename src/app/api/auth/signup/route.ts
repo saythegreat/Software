@@ -21,11 +21,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 });
     }
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     // Check if email already exists
     const { data: existing } = await supabaseAdmin
       .from('custom_users')
       .select('id, email_verified')
-      .eq('email', email.toLowerCase())
+      .eq('email', trimmedEmail)
       .single();
 
     if (existing) {
@@ -41,8 +43,8 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin
         .from('custom_users')
         .update({ verify_token: token, verify_token_expires_at: expires })
-        .eq('email', email.toLowerCase());
-      await sendVerificationEmail(email, full_name, token);
+        .eq('email', trimmedEmail);
+      await sendVerificationEmail(trimmedEmail, full_name, token);
       return NextResponse.json({
         message: 'Verification code resent! Check your inbox.',
         requiresVerification: true,
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
     const { error: insertError } = await supabaseAdmin
       .from('custom_users')
       .insert([{
-        email: email.toLowerCase(),
+        email: trimmedEmail,
         full_name: full_name.trim(),
         password_hash,
         email_verified: false,

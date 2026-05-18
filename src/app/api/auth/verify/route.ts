@@ -14,11 +14,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and code are required.' }, { status: 400 });
     }
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     // Look up user by email
     const { data: user, error } = await supabaseAdmin
       .from('custom_users')
       .select('id, email, full_name, verify_token, verify_token_expires_at, email_verified')
-      .eq('email', email.toLowerCase())
+      .eq('email', trimmedEmail)
       .single();
 
     if (error || !user) {

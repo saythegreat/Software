@@ -15,11 +15,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
     }
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     // Fetch user
     const { data: user, error } = await supabaseAdmin
       .from('custom_users')
       .select('id, email, full_name, password_hash, email_verified')
-      .eq('email', email.toLowerCase())
+      .eq('email', trimmedEmail)
       .single();
 
     if (error || !user) {
