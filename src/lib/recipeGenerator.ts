@@ -976,6 +976,77 @@ export interface RecipeDebugLog {
   aliasReplacements: string[];
 }
 
+export type IngredientRole =
+  | 'main'
+  | 'supporting'
+  | 'seasoning'
+  | 'spice'
+  | 'condiment'
+  | 'sauce'
+  | 'beverage_base'
+  | 'cooking_base'
+  | 'pantry_staple'
+  | 'utility';
+
+export function getIngredientRole(name: string): IngredientRole {
+  const norm = getNormalizedBase(name);
+  
+  if (['water', 'ice', 'ice cube', 'ice cubes'].includes(norm)) return 'utility';
+  
+  if (['oil', 'butter', 'ghee', 'lard', 'margarine', 'olive oil', 'cooking oil', 'mustard oil', 'sunflower oil', 'refined oil'].includes(norm)) return 'cooking_base';
+  
+  if (['salt', 'sugar', 'honey', 'pepper', 'black pepper', 'pepper powder', 'peppercorn'].includes(norm)) return 'seasoning';
+  
+  if (['chilli', 'chili', 'turmeric', 'cumin', 'mustard seed', 'mustard seeds', 'masala', 'cardamom', 'ginger', 'garlic', 'chilli flakes', 'chili flakes', 'chilli powder', 'chili powder', 'oregano'].includes(norm)) return 'spice';
+  
+  if (['ketchup', 'mayonnaise', 'mayo', 'mustard', 'vinegar', 'dip'].includes(norm)) return 'condiment';
+  
+  if (['soy sauce', 'chilli sauce', 'schezwan', 'chutney', 'pesto', 'marinara', 'sauce'].includes(norm)) return 'sauce';
+  
+  if (['milk', 'curd', 'yogurt', 'dahi', 'tea', 'coffee', 'juice', 'soda', 'coke', 'pepsi'].includes(norm)) return 'beverage_base';
+  
+  if (['flour', 'atta', 'suji', 'ravva'].includes(norm)) return 'pantry_staple';
+  
+  if (['onion', 'tomato', 'carrot', 'coriander', 'mint', 'spinach', 'palak', 'cabbage', 'capsicum', 'pepper', 'bell pepper', 'mushroom', 'cheese', 'cheese slice', 'cheese slices', 'cheddar', 'mozzarella'].includes(norm)) return 'supporting';
+  
+  return 'main';
+}
+
+export function checkCulinaryCompatibility(ingredients: string[]): { compatible: boolean; reason?: string } {
+  const normalized = ingredients.map(i => getNormalizedBase(i));
+  
+  const hasMango = normalized.some(i => i.includes('mango'));
+  const hasBanana = normalized.some(i => i.includes('banana'));
+  const hasApple = normalized.some(i => i.includes('apple'));
+  
+  const hasEgg = normalized.some(i => i.includes('egg'));
+  const hasChicken = normalized.some(i => i.includes('chicken') || i.includes('meat') || i.includes('mutton'));
+  const hasFish = normalized.some(i => i.includes('fish'));
+  const hasOnion = normalized.some(i => i.includes('onion') || i.includes('garlic'));
+  const hasTomato = normalized.some(i => i.includes('tomato'));
+  const hasChilli = normalized.some(i => i.includes('chilli') || i.includes('chili'));
+  const hasMilk = normalized.some(i => i.includes('milk'));
+  
+  // Fruit + Savory Protein/Alliums conflicts (Requirement 3, 4, 5)
+  if (hasMango && (hasEgg || hasChicken || hasFish || hasOnion || hasTomato)) {
+    return { compatible: false, reason: "Fruit (Mango) should not be combined with savory proteins, eggs, or onions/tomatoes in main courses." };
+  }
+  
+  if (hasBanana && (hasEgg || hasChicken || hasFish || hasOnion || hasTomato || hasChilli)) {
+    return { compatible: false, reason: "Fruit (Banana) is incompatible with hot spices, onions, tomatoes, or savory meats/eggs." };
+  }
+  
+  if (hasApple && (hasEgg || hasChicken || hasFish || hasOnion || hasTomato)) {
+    return { compatible: false, reason: "Fruit (Apple) should not be paired with savory proteins, onions, or tomatoes." };
+  }
+  
+  if (hasMilk && hasFish) {
+    return { compatible: false, reason: "Milk and fish combination is clinically and culinarily avoided." };
+  }
+  
+  return { compatible: true };
+}
+
 export function generateRecipesForInventory(availableItems: { item_name: string }[]): {
   recipes: Recipe[];
   unrelatedWarning: string | null;
@@ -983,7 +1054,6 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
   debugLogs: DebugLog[];
   recipeDebugs?: RecipeDebugLog[];
 } {
-  const normalizedInventory = availableItems.map(i => getNormalizedBase(i.item_name));
   const debugLogs: DebugLog[] = [];
   const recipeDebugs: RecipeDebugLog[] = [];
 
@@ -997,7 +1067,43 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     };
   }
 
-  // 1. Calculate compatibility for each recipe in the registry
+  // 1. Analyze and classify roles of all available ingredients (Requirement 1 & 2)
+  const activeRoles = availableItems.map(i => ({
+    name: i.item_name,
+    norm: getNormalizedBase(i.item_name),
+    role: getIngredientRole(i.item_name)
+  }));
+
+  // Filter out core main or primary supporting items (e.g. cheese, curd, paneer)
+  const coreIngredients = activeRoles.filter(
+    i => i.role === 'main' || 
+         (i.role === 'supporting' && ['cheese', 'curd', 'yogurt', 'paneer'].some(kw => i.norm.includes(kw)))
+  );
+
+  // If there are NO main core ingredients, suppress standard meals entirely (Requirement 2 & 9)
+  if (coreIngredients.length === 0) {
+    const fallbackWarning = "Your active inventory only contains supporting items or seasonings/sauces. Add a core ingredient like bread, eggs, rice, paneer, banana, or mango to unlock full meal suggestions!";
+    
+    // Generate Possible Uses as normal (Requirement 6 & 11)
+    const possibleUses = generatePossibleUsesList(availableItems);
+    
+    // Populate debug logs
+    populateDebugLogsList(availableItems, [], debugLogs);
+
+    return {
+      recipes: [],
+      unrelatedWarning: fallbackWarning,
+      possibleUses: possibleUses.slice(0, 3),
+      debugLogs,
+      recipeDebugs: []
+    };
+  }
+
+  // 2. Perform Culinary Compatibility Validation on core inventory (Requirement 4 & 5)
+  const coreNames = coreIngredients.map(i => i.name);
+  const coreCompat = checkCulinaryCompatibility(coreNames);
+
+  // 3. Match against the registry
   const matchedRecipes: Recipe[] = [];
 
   for (const registryItem of RECIPE_REGISTRY) {
@@ -1007,7 +1113,7 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     const unmatchedIngsDebug: string[] = [];
     const aliasReplacementsDebug: string[] = [];
 
-    // Evaluate required ingredients matching
+    // Verify required ingredients match
     for (const reqIngredient of registryItem.required) {
       const found = availableItems.find(invItem => isIngredientMatch(invItem.item_name, reqIngredient));
       if (found) {
@@ -1027,23 +1133,17 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
 
     const compatibilityScore = matchedRequiredCount / registryItem.required.length;
 
-    // Filter standalone condiments rules
-    let hasCoreIngredient = false;
+    // Filter Standalone Spices / Condiments as meals (Requirement 2 & 9)
+    let hasValidCore = false;
     for (const ing of registryItem.required) {
-      const cat = getIngredientCategory(ing);
-      if (['protein', 'carbs', 'veggies', 'fruits', 'dairy'].includes(cat)) {
-        if (ing !== 'butter' && ing !== 'garlic' && ing !== 'soy sauce' && ing !== 'ketchup' && ing !== 'mayonnaise') {
-          hasCoreIngredient = true;
-        }
+      const role = getIngredientRole(ing);
+      if (role === 'main' || ing === 'cheese' || ing === 'curd' || ing === 'paneer') {
+        hasValidCore = true;
       }
     }
 
-    if (registryItem.required.includes('cheese') || registryItem.required.includes('curd') || registryItem.required.includes('paneer')) {
-      hasCoreIngredient = true;
-    }
-
     if (compatibilityScore >= 0.5) {
-      if (!hasCoreIngredient) {
+      if (!hasValidCore) {
         continue;
       }
 
@@ -1062,7 +1162,21 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
         }
       }
 
-      // Build missing elements list: check both required and optional staples (Requirements 5, 6, 8)
+      // Check culinary compatibility of matched ingredients in this specific recipe (Requirement 4)
+      const compatCheck = checkCulinaryCompatibility(usedIngredients);
+      if (!compatCheck.compatible) {
+        aliasReplacementsDebug.push(`REJECTED: ${compatCheck.reason}`);
+        recipeDebugs.push({
+          recipeTitle: registryItem.title,
+          matchedIngredients: matchedIngsDebug,
+          unmatchedIngredients: unmatchedIngsDebug,
+          normalizedInventory: availableItems.map(i => `"${i.item_name}" ➜ "${getNormalizedBase(i.item_name)}"`),
+          aliasReplacements: aliasReplacementsDebug
+        });
+        continue;
+      }
+
+      // Build missing elements list: check required and optional staples (Requirement 12)
       const missingElements: string[] = [];
       registryItem.required.forEach(req => {
         const hasIt = availableItems.some(invItem => isIngredientMatch(invItem.item_name, req));
@@ -1103,18 +1217,36 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
   matchedRecipes.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
   let unrelatedWarning: string | null = null;
-  const perfectMatches = matchedRecipes.filter(r => r.compatibilityScore === 1.0);
-
-  if (availableItems.length >= 2 && perfectMatches.length === 0) {
-    unrelatedWarning = "Not enough compatible ingredients for a proper recipe yet.";
+  
+  if (!coreCompat.compatible && coreCompat.reason) {
+    unrelatedWarning = `⚠️ Culinary conflict in inventory: ${coreCompat.reason}`;
+  } else if (availableItems.length >= 2 && matchedRecipes.length === 0) {
+    unrelatedWarning = "Your ingredient combination is safe, but no recipes match. Try adding eggs, bread, rice, or cheese!";
   }
 
-  // 3. Generate Possible Uses
+  // Generate Possible Uses
+  const possibleUses = generatePossibleUsesList(availableItems);
+
+  // Populate debug logs for individual ingredients
+  populateDebugLogsList(availableItems, matchedRecipes, debugLogs);
+
+  return {
+    recipes: matchedRecipes.slice(0, 3),
+    unrelatedWarning,
+    possibleUses: possibleUses.slice(0, 3),
+    debugLogs,
+    recipeDebugs
+  };
+}
+
+// Helper to generate possible uses list
+function generatePossibleUsesList(availableItems: { item_name: string }[]): PossibleUse[] {
   const possibleUses: PossibleUse[] = [];
-  
+
   for (const invItemObj of availableItems) {
     const invItem = getNormalizedBase(invItemObj.item_name);
     const category = getIngredientCategory(invItem);
+    const role = getIngredientRole(invItemObj.item_name);
     
     const foundKey = Object.keys(POSSIBLE_USES_DB).find(key => 
       invItem.includes(getNormalizedBase(key)) || getNormalizedBase(key).includes(invItem)
@@ -1127,15 +1259,45 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     } else {
       const capitalizedName = invItemObj.item_name.charAt(0).toUpperCase() + invItemObj.item_name.slice(1);
       
-      suggestionsList.push({
-        title: `${capitalizedName} Quick Serving Idea 🍽️`,
-        description: `Direct and easy snack utilization for your ${invItemObj.item_name}.`,
-        steps: [
-          `Take a small portion of your fresh ${invItemObj.item_name}.`,
-          `Season with a tiny pinch of salt or sugar depending on taste.`,
-          `Serve directly as a quick side addition or independent snack.`
-        ]
-      });
+      // Adapt suggestions template based on ingredient role (Requirement 10 & 11)
+      if (role === 'spice' || role === 'seasoning') {
+        suggestionsList.push({
+          title: `Flavor Enhancer Idea 🧂`,
+          description: `Utilize your ${invItemObj.item_name} to lift the taste of basic dishes.`,
+          steps: [
+            `Add a tiny pinch of ${invItemObj.item_name} to fried rice, scrambled eggs, or butter toast.`,
+            `Do not consume directly. Mix thoroughly with hot butter or oil to unlock flavors.`
+          ]
+        });
+      } else if (role === 'condiment' || role === 'sauce') {
+        suggestionsList.push({
+          title: `Tangy Pairing Dip 🥢`,
+          description: `Pair your ${invItemObj.item_name} with simple bread snacks or chips.`,
+          steps: [
+            `Pour 1 spoonful of ${invItemObj.item_name} into a side cup.`,
+            `Use as a direct spread on bread toast, or as a dip for chips and biscuits.`
+          ]
+        });
+      } else if (role === 'utility') {
+        suggestionsList.push({
+          title: `Utility Usage 💧`,
+          description: `Simple essential preparation guidelines for ${invItemObj.item_name}.`,
+          steps: [
+            `Use purely as a medium for boiling eggs, cooking rice, or brewing tea.`,
+            `Keep clean and use as needed for recipe hydration.`
+          ]
+        });
+      } else {
+        suggestionsList.push({
+          title: `${capitalizedName} Quick Serving Idea 🍽️`,
+          description: `Direct and easy snack utilization for your ${invItemObj.item_name}.`,
+          steps: [
+            `Take a small portion of your fresh ${invItemObj.item_name}.`,
+            `Season with a tiny pinch of salt or sugar depending on taste.`,
+            `Serve directly as a quick side addition or independent snack.`
+          ]
+        });
+      }
 
       let compatibleWith = "Bread, Eggs, or Rice";
       if (category === 'fruits') compatibleWith = "Milk, Curd, or other sweet fruits";
@@ -1167,7 +1329,21 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
       itemName: invItemObj.item_name.charAt(0).toUpperCase() + invItemObj.item_name.slice(1),
       suggestions: suggestionsList.slice(0, 3)
     });
+  }
 
+  return possibleUses;
+}
+
+// Helper to populate ingredient debug lists
+function populateDebugLogsList(
+  availableItems: { item_name: string }[],
+  matchedRecipes: Recipe[],
+  debugLogs: DebugLog[]
+) {
+  for (const invItemObj of availableItems) {
+    const invItem = getNormalizedBase(invItemObj.item_name);
+    const category = getIngredientCategory(invItem);
+    
     const rejectedForThisItem: { title: string; reason: string; score: number }[] = [];
     RECIPE_REGISTRY.forEach(r => {
       const hasReq = r.required.some(req => isIngredientMatch(invItemObj.item_name, req));
@@ -1199,12 +1375,4 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
       rejectedRecipes: rejectedForThisItem.slice(0, 3)
     });
   }
-
-  return {
-    recipes: matchedRecipes.slice(0, 3),
-    unrelatedWarning,
-    possibleUses: possibleUses.slice(0, 3),
-    debugLogs,
-    recipeDebugs
-  };
 }
