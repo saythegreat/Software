@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useInView } from 'framer-motion';
-import { Leaf, ChefHat, Timer, ArrowRight, ShieldCheck, Sparkles, BarChart3, Bell, Star, CheckCircle2, Zap, Users, TrendingDown, RefreshCw } from 'lucide-react';
+import { Leaf, ChefHat, Timer, ArrowRight, ShieldCheck, Sparkles, BarChart3, Bell, Star, CheckCircle2, Zap, Users, TrendingDown, RefreshCw, Scan } from 'lucide-react';
 import Link from 'next/link';
 import { useRef } from 'react';
 
@@ -22,7 +22,7 @@ export const LandingPage = () => {
     { icon: <BarChart3 className="w-7 h-7" />, color: "from-blue-400 to-indigo-400", title: "Waste Analytics", desc: "Weekly and monthly stats showing exactly how much food and money you are saving." },
     { icon: <Bell className="w-7 h-7" />, color: "from-purple-400 to-pink-400", title: "Smart Reminders", desc: "Push notifications synced to your inventory so nothing slips past your attention." },
     { icon: <RefreshCw className="w-7 h-7" />, color: "from-amber-400 to-yellow-400", title: "Auto Restock List", desc: "Generates a grocery list based on items that are running low or have expired." },
-    { icon: <Zap className="w-7 h-7" />, color: "from-cyan-400 to-sky-400", title: "One-Tap Add", desc: "Add items in seconds. Scan, type, or voice-input your groceries with instant categorization." },
+    { icon: <Scan className="w-7 h-7" />, color: "from-cyan-400 to-sky-400", title: "Smart Scanner", desc: "Add items in seconds. Scan barcodes or type manually to log your groceries with automatic categorization." },
   ];
 
   const steps = [
