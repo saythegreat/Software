@@ -1314,20 +1314,11 @@ function generatePossibleUsesList(availableItems: { item_name: string }[]): Poss
           `Combine with these staples to unlock smart recipe suggestions.`
         ]
       });
-
-      suggestionsList.push({
-        title: `Recommended Shopping Additions 🛒`,
-        description: `Staples that unlock maximum potential of your ${invItemObj.item_name}.`,
-        steps: [
-          `Purchase Bread, Eggs, or Maggi from your nearby student store.`,
-          `Combining these unlocks gourmet fast dishes like toast hacks, omelettes, and cheesy noodles.`
-        ]
-      });
     }
 
     possibleUses.push({
       itemName: invItemObj.item_name.charAt(0).toUpperCase() + invItemObj.item_name.slice(1),
-      suggestions: suggestionsList.slice(0, 3)
+      suggestions: suggestionsList.slice(0, 2)
     });
   }
 
