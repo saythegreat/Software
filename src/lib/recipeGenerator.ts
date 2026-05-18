@@ -41,21 +41,126 @@ export const INGREDIENT_CATEGORIES: Record<string, string[]> = {
   cooking_essentials: ['oil', 'salt', 'pepper', 'sugar', 'spices', 'turmeric', 'masala', 'cumin', 'mustard seed']
 };
 
+// Normalized base helper to clean name, strip descriptor words, singularize (Requirements 1, 9, 11)
+export function getNormalizedBase(name: string): string {
+  let str = name.trim().toLowerCase();
+  
+  // Remove special characters, keep only letters, digits, and spaces
+  str = str.replace(/[^a-z0-9\s]/g, '');
+  
+  // Remove common descriptors/stop words so we compare core ingredients
+  const stopWords = [
+    'fresh', 'organic', 'packet of', 'packet', 'pack of', 'pack', 'slices of', 'slice', 'slices', 
+    'pieces of', 'pieces', 'piece', 'powder', 'flakes', 'ground', 'table', 'refined', 'salted', 
+    'unsalted', 'grated', 'cloves', 'clove', 'paste', 'carton', 'whole', 'boiled', 'leaves', 
+    'root', 'leaf', 'cup', 'cups', 'spoon', 'spoons', 'gram', 'grams', 'kg', 'ml', 'liter', 'liters'
+  ];
+  
+  stopWords.forEach(word => {
+    const reg = new RegExp(`\\b${word}\\b`, 'g');
+    str = str.replace(reg, '');
+  });
+  
+  str = str.trim().replace(/\s+/g, ' ');
+  
+  // Singularization handling
+  if (str.endsWith('ies')) {
+    str = str.slice(0, -3) + 'y'; // chillies -> chilli
+  } else if (str.endsWith('tomatoes')) {
+    str = 'tomato';
+  } else if (str.endsWith('potatoes')) {
+    str = 'potato';
+  } else if (str.endsWith('oes')) {
+    str = str.slice(0, -2);
+  } else if (str.endsWith('s') && !str.endsWith('ss') && str !== 'cheese') {
+    str = str.slice(0, -1);
+  }
+  
+  return str.trim();
+}
+
 // Clean and normalize ingredient names
 function normalizeName(name: string): string {
-  return name.trim().toLowerCase();
+  return getNormalizedBase(name);
 }
 
 // Get the high-level category of an ingredient
 export function getIngredientCategory(name: string): string {
-  const norm = normalizeName(name);
+  const norm = getNormalizedBase(name);
   for (const [category, keywords] of Object.entries(INGREDIENT_CATEGORIES)) {
-    if (keywords.some(kw => norm.includes(kw) || kw.includes(norm))) {
+    if (keywords.some(kw => norm.includes(getNormalizedBase(kw)) || getNormalizedBase(kw).includes(norm))) {
       return category;
     }
   }
   return 'other';
 }
+
+// Alias mapping for equivalent ingredients (Requirement 3)
+export const INGREDIENT_ALIASES: Record<string, string[]> = {
+  pepper: ['black pepper', 'pepper powder', 'peppercorns', 'peppers', 'ground pepper'],
+  chilli: ['chili', 'chillies', 'green chilli', 'red chilli', 'chilli flakes', 'chili flakes', 'chilli powder', 'chili powder', 'cayenne pepper'],
+  cheese: ['cheese slice', 'cheese slices', 'cheddar', 'mozzarella', 'processed cheese', 'cheese cube', 'cheese cubes', 'grated cheese'],
+  bread: ['bread slice', 'bread slices', 'white bread', 'brown bread', 'packet of bread', 'bread packet', 'bun', 'buns', 'loaf'],
+  milk: ['milk packet', 'packet of milk', 'packet milk', 'milk carton', 'cow milk', 'whole milk'],
+  butter: ['salted butter', 'unsalted butter', 'butter block', 'butter cube'],
+  oil: ['cooking oil', 'vegetable oil', 'mustard oil', 'sunflower oil', 'refined oil', 'ghee', 'olive oil'],
+  egg: ['eggs', 'egg packet', 'boiled egg', 'boiled eggs'],
+  chicken: ['chicken pieces', 'chicken breast', 'chicken boneless'],
+  curd: ['yogurt', 'curd packet', 'dahi'],
+  garlic: ['garlic cloves', 'garlic clove', 'garlic paste'],
+  ginger: ['ginger root', 'ginger paste'],
+  potato: ['potatoes', 'aloo'],
+  onion: ['onions', 'pyaz'],
+  tomato: ['tomatoes', 'tamatar'],
+  coriander: ['coriander leaves', 'dhaniya', 'cilantro'],
+  mint: ['mint leaves', 'pudina'],
+  paneer: ['cottage cheese'],
+  sugar: ['refined sugar', 'sugar powder'],
+  salt: ['table salt']
+};
+
+// Check if two ingredient strings match using fuzzy, base normalization, or alias mappings (Requirement 2 & 4)
+export function isIngredientMatch(inventoryItem: string, targetIngredient: string): boolean {
+  const invNorm = getNormalizedBase(inventoryItem);
+  const targetNorm = getNormalizedBase(targetIngredient);
+  
+  if (invNorm === targetNorm || invNorm.includes(targetNorm) || targetNorm.includes(invNorm)) {
+    return true;
+  }
+  
+  // Alias mappings check
+  for (const [canonical, aliases] of Object.entries(INGREDIENT_ALIASES)) {
+    const canonicalNorm = getNormalizedBase(canonical);
+    
+    const targetMatches = (targetNorm === canonicalNorm || aliases.some(alias => getNormalizedBase(alias) === targetNorm));
+    const invMatches = (invNorm === canonicalNorm || aliases.some(alias => getNormalizedBase(alias) === invNorm));
+    
+    if (targetMatches && invMatches) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Pantry Categories (Requirement 7)
+export const PANTRY_STAPLES: Record<string, string[]> = {
+  spices: ['salt', 'pepper', 'black pepper', 'chilli powder', 'turmeric', 'turmeric powder', 'masala', 'cumin', 'cumin seeds', 'mustard seeds'],
+  oils: ['oil', 'cooking oil', 'butter', 'ghee'],
+  condiments: ['ketchup', 'mayonnaise', 'soy sauce', 'chilli sauce', 'schezwan chutney'],
+  staples: ['sugar', 'water', 'flour', 'atta', 'rice', 'bread']
+};
+
+// Common pantry items that count as available if present in inventory (Requirement 8)
+export const COMMON_PANTRY_ITEMS = [
+  'salt',
+  'pepper',
+  'oil',
+  'butter',
+  'chilli powder',
+  'turmeric',
+  'sugar'
+];
 
 // Registry of highly realistic, safe, commonly known Indian, hostel-friendly, and condiment-friendly recipes
 const RECIPE_REGISTRY = [
@@ -863,21 +968,32 @@ const POSSIBLE_USES_DB: Record<string, { title: string; description: string; ste
  * Scans available inventory items, rates compatibility, filters noise,
  * and returns safe, logical recipes. Provides fallbacks for all supporting items.
  */
+export interface RecipeDebugLog {
+  recipeTitle: string;
+  matchedIngredients: string[];
+  unmatchedIngredients: string[];
+  normalizedInventory: string[];
+  aliasReplacements: string[];
+}
+
 export function generateRecipesForInventory(availableItems: { item_name: string }[]): {
   recipes: Recipe[];
   unrelatedWarning: string | null;
   possibleUses: PossibleUse[];
   debugLogs: DebugLog[];
+  recipeDebugs?: RecipeDebugLog[];
 } {
-  const normalizedInventory = availableItems.map(i => normalizeName(i.item_name));
+  const normalizedInventory = availableItems.map(i => getNormalizedBase(i.item_name));
   const debugLogs: DebugLog[] = [];
+  const recipeDebugs: RecipeDebugLog[] = [];
 
-  if (normalizedInventory.length === 0) {
+  if (availableItems.length === 0) {
     return {
       recipes: [],
       unrelatedWarning: "Add items expiring soon to see personalized recipe suggestions!",
       possibleUses: [],
-      debugLogs: []
+      debugLogs: [],
+      recipeDebugs: []
     };
   }
 
@@ -887,73 +1003,78 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
   for (const registryItem of RECIPE_REGISTRY) {
     let matchedRequiredCount = 0;
     const usedIngredients: string[] = [];
-    const logsForRecipe: { title: string; reason: string; score: number }[] = [];
+    const matchedIngsDebug: string[] = [];
+    const unmatchedIngsDebug: string[] = [];
+    const aliasReplacementsDebug: string[] = [];
 
     // Evaluate required ingredients matching
     for (const reqIngredient of registryItem.required) {
-      const found = normalizedInventory.find(invItem => 
-        invItem.includes(reqIngredient) || reqIngredient.includes(invItem)
-      );
+      const found = availableItems.find(invItem => isIngredientMatch(invItem.item_name, reqIngredient));
       if (found) {
         matchedRequiredCount++;
-        usedIngredients.push(found);
+        const prettyName = found.item_name.charAt(0).toUpperCase() + found.item_name.slice(1);
+        if (!usedIngredients.includes(prettyName)) {
+          usedIngredients.push(prettyName);
+        }
+        matchedIngsDebug.push(`${reqIngredient} (via "${found.item_name}")`);
+        if (getNormalizedBase(found.item_name) !== getNormalizedBase(reqIngredient)) {
+          aliasReplacementsDebug.push(`"${found.item_name}" ➜ "${reqIngredient}"`);
+        }
+      } else {
+        unmatchedIngsDebug.push(reqIngredient);
       }
     }
 
     const compatibilityScore = matchedRequiredCount / registryItem.required.length;
 
-    // Check if recipe is rejected because of missing required ingredients
-    if (compatibilityScore < 0.5) {
-      logsForRecipe.push({
-        title: registryItem.title,
-        reason: `Missing critical ingredients (Required: ${registryItem.required.join(', ')}). Match score: ${compatibilityScore.toFixed(2)}`,
-        score: compatibilityScore
-      });
-    }
-
-    // Intelligence: Prevent Standalone Condiment Meals
-    // Recipes composed ONLY of condiments, sauces, spreads, or cooking essentials are rejected as standalone meals.
+    // Filter standalone condiments rules
     let hasCoreIngredient = false;
     for (const ing of registryItem.required) {
       const cat = getIngredientCategory(ing);
       if (['protein', 'carbs', 'veggies', 'fruits', 'dairy'].includes(cat)) {
-        // Exclude pure oil, salt, garlic butter, or ketchup spreads as core ingredients
         if (ing !== 'butter' && ing !== 'garlic' && ing !== 'soy sauce' && ing !== 'ketchup' && ing !== 'mayonnaise') {
           hasCoreIngredient = true;
         }
       }
     }
 
-    // Butter, cheese, and curd can act as cores if combined with carbs/proteins
     if (registryItem.required.includes('cheese') || registryItem.required.includes('curd') || registryItem.required.includes('paneer')) {
       hasCoreIngredient = true;
     }
 
     if (compatibilityScore >= 0.5) {
       if (!hasCoreIngredient) {
-        logsForRecipe.push({
-          title: registryItem.title,
-          reason: "Rejected: Composed entirely of supporting ingredients/condiments.",
-          score: compatibilityScore
-        });
         continue;
       }
 
       // Add optional items that the user possesses
       for (const optIngredient of registryItem.optional) {
-        const found = normalizedInventory.find(invItem => 
-          invItem.includes(optIngredient) || optIngredient.includes(invItem)
-        );
-        if (found && !usedIngredients.includes(found)) {
-          usedIngredients.push(found);
+        const found = availableItems.find(invItem => isIngredientMatch(invItem.item_name, optIngredient));
+        if (found) {
+          const prettyName = found.item_name.charAt(0).toUpperCase() + found.item_name.slice(1);
+          if (!usedIngredients.includes(prettyName)) {
+            usedIngredients.push(prettyName);
+          }
+          matchedIngsDebug.push(`${optIngredient} (optional, via "${found.item_name}")`);
+          if (getNormalizedBase(found.item_name) !== getNormalizedBase(optIngredient)) {
+            aliasReplacementsDebug.push(`"${found.item_name}" ➜ "${optIngredient}"`);
+          }
         }
       }
 
-      // Build missing elements list
-      const missingElements = [...registryItem.missing];
+      // Build missing elements list: check both required and optional staples (Requirements 5, 6, 8)
+      const missingElements: string[] = [];
       registryItem.required.forEach(req => {
-        if (!usedIngredients.some(u => u.includes(req) || req.includes(u))) {
+        const hasIt = availableItems.some(invItem => isIngredientMatch(invItem.item_name, req));
+        if (!hasIt) {
           missingElements.push(req.charAt(0).toUpperCase() + req.slice(1));
+        }
+      });
+
+      registryItem.missing.forEach(staple => {
+        const hasIt = availableItems.some(invItem => isIngredientMatch(invItem.item_name, staple));
+        if (!hasIt) {
+          missingElements.push(staple.charAt(0).toUpperCase() + staple.slice(1));
         }
       });
 
@@ -961,35 +1082,42 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
         title: registryItem.title,
         description: registryItem.description,
         cuisine: registryItem.cuisine,
-        ingredients: usedIngredients.map(i => i.charAt(0).toUpperCase() + i.slice(1)),
+        ingredients: usedIngredients,
         missing: Array.from(new Set(missingElements)),
         steps: registryItem.steps,
         cookingTime: registryItem.cookingTime,
         compatibilityScore
       });
     }
+
+    recipeDebugs.push({
+      recipeTitle: registryItem.title,
+      matchedIngredients: matchedIngsDebug,
+      unmatchedIngredients: unmatchedIngsDebug,
+      normalizedInventory: availableItems.map(i => `"${i.item_name}" ➜ "${getNormalizedBase(i.item_name)}"`),
+      aliasReplacements: aliasReplacementsDebug
+    });
   }
 
-  // Sort recipes by compatibility score (perfect matches first)
+  // Sort recipes by compatibility score
   matchedRecipes.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
-  // 2. Identify incompatible/unrelated pairings (e.g. Mango + Chicken)
   let unrelatedWarning: string | null = null;
   const perfectMatches = matchedRecipes.filter(r => r.compatibilityScore === 1.0);
 
-  if (normalizedInventory.length >= 2 && perfectMatches.length === 0) {
+  if (availableItems.length >= 2 && perfectMatches.length === 0) {
     unrelatedWarning = "Not enough compatible ingredients for a proper recipe yet.";
   }
 
-  // 3. Generate Possible Uses / Dynamic Fallbacks
+  // 3. Generate Possible Uses
   const possibleUses: PossibleUse[] = [];
   
-  for (const invItem of normalizedInventory) {
+  for (const invItemObj of availableItems) {
+    const invItem = getNormalizedBase(invItemObj.item_name);
     const category = getIngredientCategory(invItem);
     
-    // Find matching key in explicit POSSIBLE_USES_DB
     const foundKey = Object.keys(POSSIBLE_USES_DB).find(key => 
-      invItem.includes(key) || key.includes(invItem)
+      invItem.includes(getNormalizedBase(key)) || getNormalizedBase(key).includes(invItem)
     );
 
     let suggestionsList: { title: string; description: string; steps: string[] }[] = [];
@@ -997,21 +1125,18 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     if (foundKey) {
       suggestionsList = [...POSSIBLE_USES_DB[foundKey]];
     } else {
-      // DYNAMIC FALLBACK SYSTEM: Guarantees at least 3 suggestions/pairings for every item!
-      const capitalizedName = invItem.charAt(0).toUpperCase() + invItem.slice(1);
+      const capitalizedName = invItemObj.item_name.charAt(0).toUpperCase() + invItemObj.item_name.slice(1);
       
-      // Quick Uses
       suggestionsList.push({
         title: `${capitalizedName} Quick Serving Idea 🍽️`,
-        description: `Direct and easy snack utilization for your ${invItem}.`,
+        description: `Direct and easy snack utilization for your ${invItemObj.item_name}.`,
         steps: [
-          `Take a small portion of your fresh ${invItem}.`,
+          `Take a small portion of your fresh ${invItemObj.item_name}.`,
           `Season with a tiny pinch of salt or sugar depending on taste.`,
           `Serve directly as a quick side addition or independent snack.`
         ]
       });
 
-      // Possible Pairings
       let compatibleWith = "Bread, Eggs, or Rice";
       if (category === 'fruits') compatibleWith = "Milk, Curd, or other sweet fruits";
       else if (category === 'dairy') compatibleWith = "Bread, Maggi, or hot Rice";
@@ -1020,18 +1145,17 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
 
       suggestionsList.push({
         title: `Perfect Pairing Ideas 🤝`,
-        description: `Discover what foods pair beautifully with your ${invItem}.`,
+        description: `Discover what foods pair beautifully with your ${invItemObj.item_name}.`,
         steps: [
           `Compatible additions: ${compatibleWith}.`,
-          `Layer or stir in a small amount of ${invItem} to instantly elevate the meal.`,
+          `Layer or stir in a small amount of ${invItemObj.item_name} to instantly elevate the meal.`,
           `Combine with these staples to unlock smart recipe suggestions.`
         ]
       });
 
-      // Recommended Additions
       suggestionsList.push({
         title: `Recommended Shopping Additions 🛒`,
-        description: `Staples that unlock maximum potential of your ${invItem}.`,
+        description: `Staples that unlock maximum potential of your ${invItemObj.item_name}.`,
         steps: [
           `Purchase Bread, Eggs, or Maggi from your nearby student store.`,
           `Combining these unlocks gourmet fast dishes like toast hacks, omelettes, and cheesy noodles.`
@@ -1040,31 +1164,25 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     }
 
     possibleUses.push({
-      itemName: invItem.charAt(0).toUpperCase() + invItem.slice(1),
-      suggestions: suggestionsList.slice(0, 3) // Always ensure top 3
+      itemName: invItemObj.item_name.charAt(0).toUpperCase() + invItemObj.item_name.slice(1),
+      suggestions: suggestionsList.slice(0, 3)
     });
-
-    // Populate Debug Log entry for each item
-    const matchedForThisItem = RECIPE_REGISTRY.filter(r => 
-      r.required.some(req => invItem.includes(req) || req.includes(invItem)) ||
-      r.optional.some(opt => invItem.includes(opt) || opt.includes(invItem))
-    );
 
     const rejectedForThisItem: { title: string; reason: string; score: number }[] = [];
     RECIPE_REGISTRY.forEach(r => {
-      const hasReq = r.required.some(req => invItem.includes(req) || req.includes(invItem));
-      const hasOpt = r.optional.some(opt => invItem.includes(opt) || opt.includes(invItem));
+      const hasReq = r.required.some(req => isIngredientMatch(invItemObj.item_name, req));
+      const hasOpt = r.optional.some(opt => isIngredientMatch(invItemObj.item_name, opt));
       
       if (hasReq || hasOpt) {
         let reqMatched = 0;
         r.required.forEach(req => {
-          if (normalizedInventory.some(i => i.includes(req) || req.includes(i))) reqMatched++;
+          if (availableItems.some(i => isIngredientMatch(i.item_name, req))) reqMatched++;
         });
         const score = reqMatched / r.required.length;
         if (score < 0.5) {
           rejectedForThisItem.push({
             title: r.title,
-            reason: `Rejected: Match score ${score.toFixed(2)} (Missing required: ${r.required.filter(req => !normalizedInventory.some(i => i.includes(req) || req.includes(i))).join(', ')})`,
+            reason: `Missing required ingredients: ${r.required.filter(req => !availableItems.some(i => isIngredientMatch(i.item_name, req))).join(', ')}`,
             score
           });
         }
@@ -1072,23 +1190,21 @@ export function generateRecipesForInventory(availableItems: { item_name: string 
     });
 
     debugLogs.push({
-      ingredient: invItem,
+      ingredient: invItemObj.item_name,
       recognized: category !== 'other',
       category: category.toUpperCase(),
       matchedRecipesCount: matchedRecipes.filter(r => 
-        r.ingredients.some(ing => ing.toLowerCase().includes(invItem) || invItem.includes(ing.toLowerCase()))
+        r.ingredients.some(ing => isIngredientMatch(invItemObj.item_name, ing))
       ).length,
       rejectedRecipes: rejectedForThisItem.slice(0, 3)
     });
   }
 
-  // Limit matching recipes to top 3 for optimal presentation
-  const finalRecipes = matchedRecipes.slice(0, 3);
-
   return {
-    recipes: finalRecipes,
+    recipes: matchedRecipes.slice(0, 3),
     unrelatedWarning,
     possibleUses: possibleUses.slice(0, 3),
-    debugLogs
+    debugLogs,
+    recipeDebugs
   };
 }

@@ -11,7 +11,7 @@ import { ScannerModal } from './ScannerModal';
 import { getExpiryStatus, getDaysLeft, getExpiryLabel } from '../../utils/dateUtils';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateRecipesForInventory, Recipe, PossibleUse, DebugLog } from '../../lib/recipeGenerator';
+import { generateRecipesForInventory, Recipe, PossibleUse, DebugLog, RecipeDebugLog } from '../../lib/recipeGenerator';
 import { toast } from 'sonner';
 
 export const Dashboard = () => {
@@ -25,6 +25,7 @@ export const Dashboard = () => {
   const [possibleUses, setPossibleUses] = useState<PossibleUse[]>([]);
   const [unrelatedWarning, setUnrelatedWarning] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
+  const [recipeDebugs, setRecipeDebugs] = useState<RecipeDebugLog[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [expandedRecipeIndex, setExpandedRecipeIndex] = useState<number | null>(null);
   const [expandedUseIndex, setExpandedUseIndex] = useState<number | null>(null);
@@ -43,11 +44,13 @@ export const Dashboard = () => {
       setUnrelatedWarning(result.unrelatedWarning);
       setPossibleUses(result.possibleUses);
       setDebugLogs(result.debugLogs || []);
+      setRecipeDebugs(result.recipeDebugs || []);
     } else {
       setGeneratedRecipes([]);
       setPossibleUses([]);
       setUnrelatedWarning(null);
       setDebugLogs([]);
+      setRecipeDebugs([]);
     }
   }, [items]);
 
@@ -93,6 +96,7 @@ export const Dashboard = () => {
       setUnrelatedWarning(result.unrelatedWarning);
       setPossibleUses(result.possibleUses);
       setDebugLogs(result.debugLogs || []);
+      setRecipeDebugs(result.recipeDebugs || []);
       toast.success('Recipes refreshed instantly!');
     } catch (error) {
       console.error(error);
@@ -482,6 +486,55 @@ export const Dashboard = () => {
                             </div>
                           </div>
                         ))}
+
+                        {recipeDebugs && recipeDebugs.length > 0 && (
+                          <div className="pt-4 border-t border-gray-800/60 mt-4 space-y-4">
+                            <div className="text-emerald-400 font-bold border-b border-gray-800 pb-2 flex justify-between text-xs">
+                              <span>🍽️ RECIPE EQUIVALENCE & ALIAS MATCHING</span>
+                              <span className="text-[9px] text-gray-500 uppercase tracking-widest font-black">Recipe Analyzer</span>
+                            </div>
+                            {recipeDebugs.map((rLog, rIdx) => (
+                              <div key={rIdx} className="space-y-2 border-b border-gray-800/40 pb-3 last:border-0 last:pb-0">
+                                <div className="text-white font-extrabold text-[12px] flex items-center justify-between">
+                                  <span>📖 {rLog.recipeTitle}</span>
+                                  <span className="text-[9px] font-bold text-gray-500 uppercase">Analysis</span>
+                                </div>
+                                <div className="pl-3 text-[10px] space-y-1.5">
+                                  {rLog.matchedIngredients.length > 0 && (
+                                    <div>
+                                      <span className="text-emerald-400 font-bold">✓ Matched Core/Optional:</span>
+                                      <div className="pl-2 text-gray-400">
+                                        {rLog.matchedIngredients.map((m, mIdx) => (
+                                          <div key={mIdx}>• {m}</div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {rLog.unmatchedIngredients.length > 0 && (
+                                    <div>
+                                      <span className="text-orange-400 font-bold">✗ Unmatched Required:</span>
+                                      <div className="pl-2 text-gray-500">
+                                        {rLog.unmatchedIngredients.map((u, uIdx) => (
+                                          <div key={uIdx}>• {u}</div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {rLog.aliasReplacements.length > 0 && (
+                                    <div>
+                                      <span className="text-indigo-400 font-bold">⇆ Alias/Fuzzy Equivalents Applied:</span>
+                                      <div className="pl-2 text-indigo-300/80">
+                                        {rLog.aliasReplacements.map((al, alIdx) => (
+                                          <div key={alIdx}>• {al}</div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
