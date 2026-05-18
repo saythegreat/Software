@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useInView } from 'framer-motion';
-import { Leaf, ChefHat, Timer, ArrowRight, ShieldCheck, Sparkles, BarChart3, Bell, Star, CheckCircle2, Zap, Users, TrendingDown, RefreshCw, Scan } from 'lucide-react';
+import { Leaf, ChefHat, Timer, ArrowRight, ShieldCheck, Sparkles, BarChart3, Bell, Star, CheckCircle2, Zap, RefreshCw, Scan } from 'lucide-react';
 import Link from 'next/link';
 import { useRef } from 'react';
 
@@ -36,13 +36,6 @@ export const LandingPage = () => {
     { name: "Skanda", role: "Hostel Student", stars: 5, quote: "FreshTrack made hostel food management much easier for us. We were able to track food items properly and identify products that were close to expiry before they got wasted." },
     { name: "Harikerthan", role: "Hostel Student", stars: 5, quote: "We started using FreshTrack in our hostel kitchen and it helped a lot in checking expired items and managing stock efficiently. The interface is simple and very useful." },
     { name: "Kushal", role: "Hostel Student", stars: 5, quote: "FreshTrack helped us monitor food storage in the hostel and reduced food waste by tracking expiry dates accurately. It made inventory management much more organized." },
-  ];
-
-  const stats = [
-    { value: "68%", label: "Average food waste reduction", icon: <TrendingDown className="w-5 h-5" /> },
-    { value: "₹4,200", label: "Saved per household monthly", icon: <Sparkles className="w-5 h-5" /> },
-    { value: "12k+", label: "Active users worldwide", icon: <Users className="w-5 h-5" /> },
-    { value: "4.9★", label: "Average user rating", icon: <Star className="w-5 h-5" /> },
   ];
 
   return (
@@ -176,18 +169,6 @@ export const LandingPage = () => {
               </div>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* ── STATS STRIP ── */}
-      <section className="py-16 px-6 border-y border-emerald-100/60" style={{ background: "rgba(255,255,255,0.6)", backdropFilter: "blur(12px)" }}>
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((s, i) => (
-            <FadeIn key={i} delay={i * 0.08} className="text-center">
-              <div className="inline-flex items-center gap-2 text-emerald-600 mb-2 justify-center">{s.icon}<span className="text-4xl font-black text-gray-900">{s.value}</span></div>
-              <p className="text-sm text-gray-500 font-medium">{s.label}</p>
-            </FadeIn>
-          ))}
         </div>
       </section>
 
